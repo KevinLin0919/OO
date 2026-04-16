@@ -2,21 +2,40 @@ package oops;
 
 import javax.swing.*;
 import java.awt.*;
+import java.awt.event.MouseAdapter;
+import java.awt.event.MouseEvent;
 import java.util.function.Supplier;
 
 import oops.mode.*;
+import oops.model.*;
 
 /**
  * 左側工具列，包含 6 個按鈕：
- *   - Select、Association、Generalization、Composition → 持久模式按鈕（點擊切換）
- *   - Rect、Oval → 建立物件按鈕，支援兩種操作方式：
- *       (1) 點擊按鈕 → 按鈕變深色 → 點擊畫布建立物件 → 自動回到原模式
- *       (2) 按住按鈕拖曳到畫布放開 → 直接建立物件 → 自動回到原模式
+ *
+ *   Select / Association / Generalization / Composition
+ *     → 持久模式按鈕：點擊後切換模式，保持到下次切換為止。
+ *
+ *   Rect / Oval（Use Case A）支援兩種建立路徑：
+ *
+ *     路徑 1 — 拖曳路徑（Spec 規定）：
+ *       在按鈕上按住不放 → 拖曳到畫布 → 放開 → 立即建立物件 → 自動回到原模式
+ *       由 MouseListener.mouseReleased 透過座標轉換處理。
+ *
+ *     路徑 2 — 點擊路徑（使用者直覺）：
+ *       點擊按鈕 → 進入建立模式（十字游標）→ 點畫布 → 建立物件 → 自動回到原模式
+ *       由 ActionListener 切換為 CreateObjectMode 處理。
  */
 public class ToolPanel extends JPanel {
 
     private final Canvas canvas;
-    private JButton highlightedButton; // 目前被高亮的按鈕
+    private JButton highlightedButton;
+
+    // 按下 Rect/Oval 按鈕前所記住的狀態，用於建立後恢復
+    private Mode    savedMode;
+    private JButton savedButton;
+
+    // 防止拖曳路徑和點擊路徑同時觸發建立（drag 已建立則 ActionListener 略過）
+    private boolean dragCreated = false;
 
     public ToolPanel(Canvas canvas) {
         this.canvas = canvas;
@@ -24,7 +43,6 @@ public class ToolPanel extends JPanel {
         setLayout(new GridLayout(6, 1, 4, 4));
         setBorder(BorderFactory.createEmptyBorder(5, 5, 5, 5));
 
-        // 4 個持久模式按鈕
         JButton selectBtn = createModeButton("Select", "select", SelectMode::new);
         JButton assocBtn  = createModeButton("Association", "association",
                 () -> new CreateLinkMode(CreateLinkMode.LinkType.ASSOCIATION));
@@ -33,11 +51,8 @@ public class ToolPanel extends JPanel {
         JButton compBtn   = createModeButton("Composition", "composition",
                 () -> new CreateLinkMode(CreateLinkMode.LinkType.COMPOSITION));
 
-        // 2 個建立物件按鈕（和模式按鈕一樣是持久模式，可連續建立）
-        JButton rectBtn = createModeButton("Rect", "rect",
-                () -> new CreateObjectMode(true));
-        JButton ovalBtn = createModeButton("Oval", "oval",
-                () -> new CreateObjectMode(false));
+        JButton rectBtn = createObjectButton("Rect", "rect", true);
+        JButton ovalBtn = createObjectButton("Oval", "oval", false);
 
         add(selectBtn);
         add(assocBtn);
@@ -46,14 +61,12 @@ public class ToolPanel extends JPanel {
         add(rectBtn);
         add(ovalBtn);
 
-        // 預設啟用 Select 模式
         highlightButton(selectBtn);
         canvas.setMode(new SelectMode());
     }
 
     // ======== 按鈕高亮管理 ========
 
-    /** 將指定按鈕設為高亮（深色），同時取消之前按鈕的高亮 */
     private void highlightButton(JButton btn) {
         if (highlightedButton != null) {
             highlightedButton.setBackground(UIManager.getColor("Button.background"));
@@ -66,11 +79,10 @@ public class ToolPanel extends JPanel {
 
     // ======== 建立按鈕 ========
 
-    /** 建立模式按鈕（所有 6 個按鈕共用） */
+    /** 建立持久模式按鈕（Select / Association / Generalization / Composition） */
     private JButton createModeButton(String text, String iconType, Supplier<Mode> modeFactory) {
         JButton btn = new JButton(text);
         styleButton(btn, iconType);
-
         btn.addActionListener(e -> {
             highlightButton(btn);
             canvas.setMode(modeFactory.get());
@@ -79,7 +91,83 @@ public class ToolPanel extends JPanel {
         return btn;
     }
 
-    /** 共用的按鈕外觀設定 */
+    /**
+     * 建立一次性物件按鈕（Rect / Oval）。
+     * 同時掛載 MouseListener（拖曳路徑）和 ActionListener（點擊路徑）。
+     */
+    private JButton createObjectButton(String text, String iconType, boolean isRect) {
+        JButton btn = new JButton(text);
+        styleButton(btn, iconType);
+
+        // ── 拖曳路徑 ──────────────────────────────────────────────────
+        // Swing 規則：mouseReleased 永遠送回給 pressed 的那個元件，
+        // 所以拖曳到畫布再放開，事件仍在按鈕上觸發，透過座標轉換判斷位置。
+        btn.addMouseListener(new MouseAdapter() {
+            @Override
+            public void mousePressed(MouseEvent e) {
+                dragCreated = false;
+                savedMode   = canvas.getMode();
+                savedButton = highlightedButton;
+                highlightButton(btn);
+            }
+
+            @Override
+            public void mouseReleased(MouseEvent e) {
+                // 將按鈕本地座標轉換為畫布座標
+                Point pt = SwingUtilities.convertPoint(btn, e.getPoint(), canvas);
+                if (canvas.contains(pt)) {
+                    // 在畫布上放開 → 建立物件
+                    int w = 150, h = 100;
+                    UMLObject obj = isRect
+                            ? new RectObject(pt.x - w / 2, pt.y - h / 2, w, h)
+                            : new OvalObject(pt.x - w / 2, pt.y - h / 2, w, h);
+                    canvas.addObject(obj);
+                    dragCreated = true;
+                    restoreSavedState(); // 恢復原模式和按鈕
+                }
+                // 若在按鈕上放開（沒拖到畫布），交給 ActionListener 切換模式
+            }
+        });
+
+        // ── 點擊路徑 ──────────────────────────────────────────────────
+        // ActionListener 在 mouseReleased on button 後觸發。
+        // 若拖曳路徑已建立（dragCreated=true），則略過。
+        btn.addActionListener(e -> {
+            if (!dragCreated) {
+                // 取出儲存的原狀態（由 mousePressed 設定）
+                Mode    pm = savedMode;
+                JButton pb = savedButton;
+                savedMode   = null;
+                savedButton = null;
+
+                // 切換到 CreateObjectMode，建立後自動恢復
+                canvas.setMode(new CreateObjectMode(isRect, () -> {
+                    if (pb != null) highlightButton(pb);
+                    if (pm != null) canvas.setMode(pm);
+                    canvas.setCursor(Cursor.getDefaultCursor());
+                }));
+                // btn 已在 mousePressed 時 highlight，不需再呼叫
+            }
+            dragCreated = false;
+        });
+
+        return btn;
+    }
+
+    /** 恢復按下 Rect/Oval 前所記住的模式和按鈕高亮 */
+    private void restoreSavedState() {
+        if (savedButton != null) {
+            highlightButton(savedButton);
+            savedButton = null;
+        }
+        if (savedMode != null) {
+            canvas.setMode(savedMode);
+            savedMode = null;
+        }
+    }
+
+    // ======== 按鈕外觀 ========
+
     private void styleButton(JButton btn, String iconType) {
         btn.setIcon(createIcon(iconType));
         btn.setHorizontalTextPosition(SwingConstants.LEFT);
@@ -89,9 +177,6 @@ public class ToolPanel extends JPanel {
         btn.setOpaque(true);
     }
 
-    /**
-     * 為每個按鈕建立一個小圖示（程式繪製），符合 Spec 示意圖中的圖示樣式。
-     */
     private Icon createIcon(String type) {
         return new Icon() {
             @Override
@@ -154,7 +239,7 @@ public class ToolPanel extends JPanel {
                 }
                 g2d.dispose();
             }
-            @Override public int getIconWidth() { return 22; }
+            @Override public int getIconWidth()  { return 22; }
             @Override public int getIconHeight() { return 18; }
         };
     }

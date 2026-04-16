@@ -11,9 +11,11 @@ import oops.model.*;
  * 適用於 Association、Generalization、Composition 三種連線類型。
  *
  * 操作流程：
- *   1. 在某個基本物件上按下滑鼠（找到最近的 port 作為起點）
- *   2. 拖曳到另一個基本物件上放開（找到最近的 port 作為終點）
+ *   1. 在某個基本物件的 port 範圍（10×10）內按下滑鼠
+ *   2. 拖曳到另一個基本物件的 port 範圍內放開
  *   3. 建立連線
+ *
+ * Spec 明確規定：判斷座標是否在 port 的範圍內，不適用 composite 物件。
  */
 public class CreateLinkMode implements Mode {
 
@@ -34,17 +36,13 @@ public class CreateLinkMode implements Mode {
         int mx = e.getX();
         int my = e.getY();
 
-        // 找到滑鼠位置的基本物件（不含 Composite）
-        UMLObject obj = canvas.getBasicObjectAt(mx, my);
-        if (obj != null) {
-            // 使用最近的 port 作為起點
-            Port port = obj.getNearestPort(mx, my);
-            if (port != null) {
-                sourceObject = obj;
-                sourcePort = port;
-                currentMouse = new Point(mx, my);
-                dragging = true;
-            }
+        // Spec B.1：必須點在基本物件的 port 範圍（10×10）內才能開始連線
+        Port port = canvas.getPortAt(mx, my);
+        if (port != null) {
+            sourceObject = port.getOwner();
+            sourcePort = port;
+            currentMouse = new Point(mx, my);
+            dragging = true;
         }
     }
 
@@ -68,15 +66,11 @@ public class CreateLinkMode implements Mode {
         int mx = e.getX();
         int my = e.getY();
 
-        // 找到終點的基本物件（必須和起點不同）
-        UMLObject destObj = canvas.getBasicObjectAt(mx, my);
-        if (destObj != null && destObj != sourceObject) {
-            Port destPort = destObj.getNearestPort(mx, my);
-            if (destPort != null) {
-                // 根據連線類型建立對應的 ConnectionLine
-                ConnectionLine line = createLine(sourceObject, sourcePort, destObj, destPort);
-                canvas.addConnectionLine(line);
-            }
+        // Spec B.2：必須放在另一個基本物件的 port 範圍內才能建立連線
+        Port destPort = canvas.getPortAt(mx, my);
+        if (destPort != null && destPort.getOwner() != sourceObject) {
+            ConnectionLine line = createLine(sourceObject, sourcePort, destPort.getOwner(), destPort);
+            canvas.addConnectionLine(line);
         }
 
         // 重置狀態

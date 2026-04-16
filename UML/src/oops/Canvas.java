@@ -81,7 +81,7 @@ public class Canvas extends JPanel implements MouseListener, MouseMotionListener
 
     /**
      * 找到座標上最頂層的「基本物件」（穿透 Composite 去找裡面的 Rect/Oval）。
-     * 用於連線模式，因為 link 只能連接基本物件，不能連接 Composite。
+     * 用於 hover 顯示等視覺回饋，不用於連線起點/終點判斷。
      */
     public UMLObject getBasicObjectAt(int x, int y) {
         for (int i = objects.size() - 1; i >= 0; i--) {
@@ -98,6 +98,28 @@ public class Canvas extends JPanel implements MouseListener, MouseMotionListener
                 if (obj.contains(x, y)) {
                     return obj;
                 }
+            }
+        }
+        return null;
+    }
+
+    /**
+     * 找到座標 (x, y) 所在的 Port（穿透 Composite 找基本物件的 port）。
+     * 用於連線模式的起點/終點判定（Use Case B）：
+     * 必須點在 port 的 10×10 範圍內才算有效，符合 Spec 規範。
+     * @return 命中的 Port，若無則 null
+     */
+    public Port getPortAt(int x, int y) {
+        for (int i = objects.size() - 1; i >= 0; i--) {
+            UMLObject obj = objects.get(i);
+            if (obj instanceof CompositeObject) {
+                for (UMLObject basic : ((CompositeObject) obj).getAllBasicObjects()) {
+                    Port p = basic.getPortAt(x, y);
+                    if (p != null) return p;
+                }
+            } else {
+                Port p = obj.getPortAt(x, y);
+                if (p != null) return p;
             }
         }
         return null;
