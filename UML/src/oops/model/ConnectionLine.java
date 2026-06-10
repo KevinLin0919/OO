@@ -2,10 +2,15 @@ package oops.model;
 
 import java.awt.*;
 
+// Template Method Pattern
 /**
  * Connection Line 的抽象基底類別。
  * 每條 line 連接兩個基本物件的特定 port。
  * 子類別負責繪製各自的箭頭樣式（Association、Generalization、Composition）。
+ *
+ * Template Method Pattern：
+ *   - draw() 是 template method，定義「畫線 → 畫箭頭」的骨架
+ *   - drawArrowHead() 是 hook，由各子類別實作不同箭頭樣式
  */
 public abstract class ConnectionLine {
 

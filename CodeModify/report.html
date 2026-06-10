@@ -1,0 +1,686 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AI 協作開發報告 — UML Editor 新功能實作</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: "Microsoft JhengHei", "PingFang TC", "Noto Sans CJK TC", sans-serif;
+    font-size: 13pt;
+    line-height: 1.8;
+    color: #222;
+    background: #fff;
+    padding: 0;
+  }
+  .cover {
+    width: 100%;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    text-align: center;
+    padding: 60px 40px;
+    border-bottom: 3px solid #2c5282;
+    page-break-after: always;
+  }
+  .cover h1 { font-size: 28pt; color: #2c5282; margin-bottom: 16px; }
+  .cover h2 { font-size: 16pt; color: #4a5568; font-weight: normal; margin-bottom: 40px; }
+  .cover .meta { font-size: 12pt; color: #718096; line-height: 2.2; }
+  .cover .meta strong { color: #2d3748; }
+
+  .content {
+    max-width: 820px;
+    margin: 0 auto;
+    padding: 48px 60px;
+  }
+
+  h1.section-title {
+    font-size: 18pt;
+    color: #2c5282;
+    border-bottom: 2px solid #2c5282;
+    padding-bottom: 8px;
+    margin: 48px 0 24px 0;
+    page-break-before: always;
+  }
+  h1.section-title:first-of-type { page-break-before: avoid; }
+
+  h2.sub-title {
+    font-size: 14pt;
+    color: #2d3748;
+    margin: 32px 0 12px 0;
+    padding-left: 12px;
+    border-left: 4px solid #4299e1;
+  }
+  h3.sub-sub-title {
+    font-size: 12pt;
+    color: #4a5568;
+    margin: 20px 0 8px 0;
+    font-weight: bold;
+  }
+
+  p { margin-bottom: 14px; }
+
+  .prompt-box {
+    background: #ebf8ff;
+    border: 1px solid #90cdf4;
+    border-left: 4px solid #3182ce;
+    border-radius: 4px;
+    padding: 14px 18px;
+    margin: 14px 0;
+    font-size: 11.5pt;
+  }
+  .prompt-box .label {
+    font-size: 9pt;
+    font-weight: bold;
+    color: #3182ce;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    margin-bottom: 6px;
+  }
+  .prompt-box .text { color: #2d3748; }
+
+  .response-box {
+    background: #f0fff4;
+    border: 1px solid #9ae6b4;
+    border-left: 4px solid #38a169;
+    border-radius: 4px;
+    padding: 14px 18px;
+    margin: 14px 0;
+    font-size: 11.5pt;
+  }
+  .response-box .label {
+    font-size: 9pt;
+    font-weight: bold;
+    color: #38a169;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    margin-bottom: 6px;
+  }
+
+  .bug-box {
+    background: #fff5f5;
+    border: 1px solid #feb2b2;
+    border-left: 4px solid #e53e3e;
+    border-radius: 4px;
+    padding: 14px 18px;
+    margin: 14px 0;
+  }
+  .bug-box .label {
+    font-size: 9pt;
+    font-weight: bold;
+    color: #e53e3e;
+    margin-bottom: 6px;
+  }
+
+  .fix-box {
+    background: #fffff0;
+    border: 1px solid #f6e05e;
+    border-left: 4px solid #d69e2e;
+    border-radius: 4px;
+    padding: 14px 18px;
+    margin: 14px 0;
+  }
+  .fix-box .label {
+    font-size: 9pt;
+    font-weight: bold;
+    color: #d69e2e;
+    margin-bottom: 6px;
+  }
+
+  code {
+    font-family: "Consolas", "Courier New", monospace;
+    background: #edf2f7;
+    padding: 1px 5px;
+    border-radius: 3px;
+    font-size: 10.5pt;
+    color: #c53030;
+  }
+  pre {
+    font-family: "Consolas", "Courier New", monospace;
+    background: #1a202c;
+    color: #e2e8f0;
+    padding: 16px 20px;
+    border-radius: 6px;
+    font-size: 9.5pt;
+    line-height: 1.6;
+    overflow-x: auto;
+    margin: 12px 0;
+    white-space: pre-wrap;
+  }
+  pre .comment { color: #68d391; }
+  pre .keyword { color: #90cdf4; }
+  pre .string { color: #fbb6ce; }
+
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 16px 0;
+    font-size: 11pt;
+  }
+  th {
+    background: #2c5282;
+    color: white;
+    padding: 10px 14px;
+    text-align: left;
+  }
+  td {
+    padding: 9px 14px;
+    border-bottom: 1px solid #e2e8f0;
+  }
+  tr:nth-child(even) td { background: #f7fafc; }
+
+  ul, ol {
+    margin: 10px 0 14px 24px;
+  }
+  li { margin-bottom: 6px; }
+
+  .badge {
+    display: inline-block;
+    padding: 2px 8px;
+    border-radius: 12px;
+    font-size: 9pt;
+    font-weight: bold;
+    margin-right: 4px;
+  }
+  .badge-blue { background: #bee3f8; color: #2b6cb0; }
+  .badge-green { background: #c6f6d5; color: #276749; }
+  .badge-red { background: #fed7d7; color: #9b2c2c; }
+  .badge-yellow { background: #fefcbf; color: #744210; }
+
+  .timeline {
+    border-left: 3px solid #4299e1;
+    padding-left: 24px;
+    margin: 16px 0;
+  }
+  .timeline-item {
+    position: relative;
+    margin-bottom: 20px;
+  }
+  .timeline-item::before {
+    content: '';
+    position: absolute;
+    left: -31px;
+    top: 6px;
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+    background: #4299e1;
+    border: 2px solid white;
+    box-shadow: 0 0 0 2px #4299e1;
+  }
+  .timeline-item .phase {
+    font-weight: bold;
+    color: #2c5282;
+    font-size: 11pt;
+  }
+  .timeline-item .desc {
+    color: #4a5568;
+    font-size: 11pt;
+  }
+
+  .reflection-card {
+    background: #f7fafc;
+    border: 1px solid #e2e8f0;
+    border-radius: 8px;
+    padding: 18px 22px;
+    margin: 14px 0;
+  }
+  .reflection-card h4 {
+    color: #2c5282;
+    margin-bottom: 8px;
+    font-size: 12pt;
+  }
+
+  @media print {
+    .cover { min-height: 85vh; }
+    h1.section-title { page-break-before: always; }
+    pre { page-break-inside: avoid; }
+    .prompt-box, .response-box, .bug-box, .fix-box { page-break-inside: avoid; }
+  }
+</style>
+</head>
+<body>
+
+<!-- ===== 封面 ===== -->
+<div class="cover">
+  <h1>AI 協作開發報告</h1>
+  <h2>UML Editor 新功能實作 — Claude AI 協作歷程紀錄</h2>
+  <div class="meta">
+    <strong>課程：</strong>物件導向程式設計<br>
+    <strong>專案：</strong>Java Swing UML Editor (CodeModify)<br>
+    <strong>AI 工具：</strong>Claude Sonnet 4.6（透過 Claude Code CLI）<br>
+    <strong>日期：</strong>2026 年 5 月<br>
+    <strong>新增功能：</strong>虛線箭頭・紅點 Port 提示・拖曳建立物件・Port 點擊高亮連線
+  </div>
+</div>
+
+<!-- ===== 內容 ===== -->
+<div class="content">
+
+<!-- ===================== 第一章 ===================== -->
+<h1 class="section-title">1. AI 協作流程與策略</h1>
+
+<h2 class="sub-title">1.1 專案背景與任務說明</h2>
+<p>
+本次作業目標是在既有的 Java Swing UML Editor 上新增四項功能，
+同時<strong>嚴格禁止重構整個專案架構</strong>（違反者以零分計）。
+專案使用 Handler / Listener / Model 三層架構，核心檔案包含
+<code>CanvasPanelHandler</code>、<code>FuncPanelHandler</code>、
+<code>CPHActionListener</code> 以及各 <code>mod.instance.*</code> 元件類別。
+</p>
+
+<p>四項新功能需求如下：</p>
+<table>
+  <tr><th>#</th><th>功能</th><th>說明</th></tr>
+  <tr><td>1</td><td>Dependency Line（虛線箭頭）</td><td>新增虛線箭頭連線類型，以 BasicStroke 虛線繪製</td></tr>
+  <tr><td>2</td><td>Port 紅點提示</td><td>在連線模式下，滑鼠移到物件附近時顯示紅色圓點</td></tr>
+  <tr><td>3</td><td>拖曳建立物件</td><td>在 Class / UseCase 模式下，拖曳決定物件大小</td></tr>
+  <tr><td>4</td><td>Port 點擊高亮連線</td><td>在 Select 模式下，點擊 Port 將相連的線條高亮為藍色</td></tr>
+</table>
+
+<h2 class="sub-title">1.2 協作流程概覽</h2>
+
+<div class="timeline">
+  <div class="timeline-item">
+    <div class="phase">Phase 1 — 需求理解與規格確認</div>
+    <div class="desc">上傳規格文件，要求 AI 閱讀並記憶所有需求與限制，不急於實作。</div>
+  </div>
+  <div class="timeline-item">
+    <div class="phase">Phase 2 — 規格文件與 Task 生成</div>
+    <div class="desc">要求 AI 產出 spec 與 task 清單，形成可追蹤的實作計劃。</div>
+  </div>
+  <div class="timeline-item">
+    <div class="phase">Phase 3 — 逐步實作</div>
+    <div class="desc">按 task 逐步進行，AI 修改既有檔案並新增 DependencyLine.java。</div>
+  </div>
+  <div class="timeline-item">
+    <div class="phase">Phase 4 — 執行驗證（截圖回饋循環）</div>
+    <div class="desc">執行程式後截圖給 AI，描述觀察到的問題，AI 分析並修正。共進行 4 輪。</div>
+  </div>
+  <div class="timeline-item">
+    <div class="phase">Phase 5 — 連線邏輯深度除錯</div>
+    <div class="desc">針對連線困難問題，AI 分析 Swing 事件分派機制根本原因並修正。</div>
+  </div>
+</div>
+
+<h2 class="sub-title">1.3 關鍵 Prompt 與對應回覆</h2>
+
+<h3 class="sub-sub-title">Prompt 1 — 需求閱讀階段</h3>
+<div class="prompt-box">
+  <div class="label">User Prompt</div>
+  <div class="text">
+    請你詳細閱讀此份文件，內容完本次要完成的新功能規格，請你先閱讀完，
+    了解了所有的需求和規範之後再開始規劃。目前先幫我閱讀並記憶你所該遵守
+    即可能規畫如何進行。
+  </div>
+</div>
+<div class="response-box">
+  <div class="label">AI 回覆策略</div>
+  AI 閱讀規格文件後，拆解出四個功能需求，並特別記錄了禁止重構架構的限制條件。
+  確認了 FuncIndex 對應關係（0=Select, 1=Association … 6=DependencyLine）
+  以及 AreaDefine 常數（TOP=3, RIGHT=2, LEFT=1, BOTTOM=0）等關鍵細節後，
+  才進入下一階段。
+</div>
+
+<h3 class="sub-sub-title">Prompt 2 — 規格與 Task 文件生成</h3>
+<div class="prompt-box">
+  <div class="label">User Prompt</div>
+  <div class="text">
+    幫我建立 spec 相關檔案，產生 specify 等等 md 檔，
+    後續再生成應該要有的 task，最後再進行實作。
+  </div>
+</div>
+<div class="response-box">
+  <div class="label">AI 回覆策略</div>
+  AI 建立了 <code>SPEC.md</code> 與 <code>TASKS.md</code> 兩份文件，
+  將四個功能拆解為具體的可執行 task（含目標檔案、新增方法、修改邏輯），
+  並以此作為後續實作的錨點，確保每個步驟有明確的驗收標準。
+</div>
+
+<h3 class="sub-sub-title">Prompt 3 — 逐步實作</h3>
+<div class="prompt-box">
+  <div class="label">User Prompt</div>
+  <div class="text">幫我按照 task 逐步實作。</div>
+</div>
+<div class="response-box">
+  <div class="label">AI 實作內容摘要</div>
+  <ul>
+    <li>新建 <code>DependencyLine.java</code>（虛線 + 開口三角箭頭）</li>
+    <li>在 <code>FuncPanelHandler</code> 新增 <code>makeDependencyIcon()</code>、<code>getIcon(6)</code>、<code>getFunc(6)</code></li>
+    <li>在 <code>Core.java</code> 新增 <code>isDependencyLine()</code> 並更新 <code>isLine()</code> / <code>isFuncComponent()</code></li>
+    <li>在 <code>CanvasPanelHandler</code> 新增紅點繪製、拖曳建立物件、Port 高亮邏輯</li>
+    <li>修改 <code>CPHActionListener</code> 新增 <code>wasDragged</code> 旗標</li>
+    <li>在 <code>AssociationLine</code>、<code>CompositionLine</code>、<code>GeneralizationLine</code> 新增 highlight 機制</li>
+  </ul>
+</div>
+
+<h3 class="sub-sub-title">Prompt 4 — 第一輪截圖除錯</h3>
+<div class="prompt-box">
+  <div class="label">User Prompt（附截圖）</div>
+  <div class="text">
+    目前好像沒有虛線箭頭，都是實線的，且圖片會破圖，連線也很難連到，
+    切換模式也常常失敗。幫我看一下要如何改，記得不要重購專案。
+  </div>
+</div>
+<div class="response-box">
+  <div class="label">AI 診斷與修正</div>
+  AI 發現虛線箭頭的工具列 icon 因使用 <code>dependency_line.jpg</code>（實際上是 Association 圖）
+  而顯示錯誤。修正方案：改為在 <code>FuncPanelHandler</code> 用程式碼
+  以 <code>BufferedImage + Graphics2D + BasicStroke</code> 動態繪製虛線圖示，
+  不依賴外部圖檔。
+</div>
+
+<h3 class="sub-sub-title">Prompt 5 — 第二輪截圖除錯</h3>
+<div class="prompt-box">
+  <div class="label">User Prompt（附截圖）</div>
+  <div class="text">
+    目前沒辦法用拖曳大小的方式去建立 UseCase 跟 Class，
+    且連線部分常常失敗，滑鼠移過去也不會顯示紅點，不太好操作，幫我修改一下。
+  </div>
+</div>
+<div class="response-box">
+  <div class="label">AI 診斷與修正</div>
+  發現兩個問題：(1) Swing 的 <code>MouseMotionListener</code> 不會從子元件往父元件傳遞，
+  因此移到物件上時紅點沒有觸發。修正：在每個 addObject 時附加 <code>MouseMotionAdapter</code>
+  並用 <code>SwingUtilities.convertPoint()</code> 轉換座標。
+  (2) <code>mouseClicked</code> 在拖曳後仍會觸發，造成雙重建立物件。
+  修正：在 <code>CPHActionListener</code> 加入 <code>wasDragged</code> 旗標。
+</div>
+
+<h3 class="sub-sub-title">Prompt 6 — 第三輪截圖除錯</h3>
+<div class="prompt-box">
+  <div class="label">User Prompt（附截圖）</div>
+  <div class="text">
+    現在仍然無法用拖曳的方式建立物件，另外跟我講一下現在連接線段要怎麼連，
+    另外還有一個問題是紅點目前好像不是在圖層最上面，會被遮住半個點，幫我改一下。
+  </div>
+</div>
+<div class="response-box">
+  <div class="label">AI 診斷與修正</div>
+  發現三個問題：(1) <code>BasicClass</code> 與 <code>UseCase</code> 的 <code>paintComponent</code>
+  仍使用 <code>defSize</code> 繪圖而非 <code>this.getWidth() / getHeight()</code>，
+  導致自訂大小無效。(2) 紅點在 <code>paintComponent</code> 中繪製，
+  會被子元件遮住。修正：改為 override <code>paintChildren</code>，在子元件繪製後才畫紅點。
+</div>
+
+<h3 class="sub-sub-title">Prompt 7 — 第四輪連線邏輯除錯</h3>
+<div class="prompt-box">
+  <div class="label">User Prompt（附截圖）</div>
+  <div class="text">
+    好像還是連不太起來欸，我都等到有紅點出現才放開了。
+    另外現在有一個 class 只能連一條等等的規定嗎？
+    User Case 可以連到其他的 Use Case 嗎？幫我統整目前的連線規則。
+  </div>
+</div>
+<div class="response-box">
+  <div class="label">AI 根本原因分析</div>
+  深入分析 Swing 事件分派機制後發現：當使用者<strong>在物件內部按下滑鼠</strong>時，
+  Swing 的 <code>LightweightDispatcher</code> 將事件分派給子元件（BasicClass/UseCase），
+  contextPanel 的 <code>CPHActionListener</code> 完全<strong>收不到</strong> mousePressed，
+  導致 <code>from</code> 點從未被設定，連線必然失敗。
+  <br><br>修正：(1) 在 CanvasPanelHandler 儲存 <code>cphListener</code> 為欄位。
+  (2) 在每個物件上附加 <code>MouseAdapter</code>，將 pressed/released/clicked
+  事件透過 <code>SwingUtilities.convertPoint()</code> 轉換後轉發給 cphListener。
+  (3) 加入 <code>isInsideWithTolerance()</code> 方法（±15px 容許誤差），
+  讓從物件邊緣出發的連線也能被正確識別。
+</div>
+
+<!-- ===================== 第二章 ===================== -->
+<h1 class="section-title">2. 驗證歷程</h1>
+
+<h2 class="sub-title">2.1 驗證策略</h2>
+<p>
+本次協作採用「實作 → 編譯 → 執行 → 截圖回饋」的迭代循環，
+每一輪均以截圖作為驗證依據，讓 AI 能直接觀察程式執行結果。
+同時每次修改後 AI 會立即重新編譯確認無語法錯誤。
+</p>
+
+<table>
+  <tr><th>驗證方式</th><th>說明</th></tr>
+  <tr><td>編譯驗證</td><td>每次修改後執行 <code>javac</code>，以零錯誤輸出確認語法正確</td></tr>
+  <tr><td>截圖回饋</td><td>執行程式後截圖並描述異常行為，AI 根據視覺資訊診斷</td></tr>
+  <tr><td>行為描述</td><td>描述「按了但沒有反應」、「紅點不顯示」等具體症狀</td></tr>
+  <tr><td>架構限制確認</td><td>明確要求 AI 不重構專案，每次修改後確認限制仍被遵守</td></tr>
+</table>
+
+<h2 class="sub-title">2.2 Bug 發現與修正歷程</h2>
+
+<h3 class="sub-sub-title">Bug 1 — 虛線箭頭 Icon 顯示錯誤</h3>
+<div class="bug-box">
+  <div class="label">問題描述</div>
+  虛線箭頭按鈕顯示與 Association Line 相同的圖示，且來自不存在的圖檔
+  <code>dependency_line.jpg</code>，導致圖示破圖。
+</div>
+<div class="fix-box">
+  <div class="label">修正方案</div>
+  在 <code>FuncPanelHandler.makeDependencyIcon()</code> 中以程式繪製圖示：
+  用 <code>BasicStroke</code> 虛線畫橫線，加上開口三角箭頭。不依賴外部圖檔。
+</div>
+
+<h3 class="sub-sub-title">Bug 2 — 拖曳建立物件後大小仍顯示預設值</h3>
+<div class="bug-box">
+  <div class="label">問題描述</div>
+  <code>setCustomSize()</code> 與 <code>reSize()</code> 雖已實作，
+  但 <code>paintComponent()</code> 中繪製矩形/橢圓時仍寫死使用 <code>defSize</code>，
+  導致物件外觀不隨拖曳大小改變。
+</div>
+<div class="fix-box">
+  <div class="label">修正方案</div>
+  將 <code>BasicClass.paintComponent()</code> 和 <code>UseCase.paintComponent()</code>
+  中所有 <code>defSize.width</code> / <code>defSize.height</code>
+  改為 <code>this.getWidth()</code> / <code>this.getHeight()</code>。
+<pre>
+<span class="comment">// 修正前（BasicClass）</span>
+g.fillRect(0, i * defSize.height, defSize.width - 1, defSize.height - 1);
+
+<span class="comment">// 修正後</span>
+<span class="keyword">int</span> w = this.getWidth();
+<span class="keyword">int</span> rowH = texts.size() > 0 ? this.getHeight() / texts.size() : defSize.height;
+g.fillRect(0, i * rowH, w - 1, rowH - 1);
+</pre>
+</div>
+
+<h3 class="sub-sub-title">Bug 3 — 紅點被物件遮住</h3>
+<div class="bug-box">
+  <div class="label">問題描述</div>
+  紅點在 contextPanel 的 <code>paintComponent()</code> 中繪製，
+  但 Swing 繪圖順序為 paintComponent → paintChildren，
+  子元件（BasicClass/UseCase）繪製後會覆蓋紅點。
+</div>
+<div class="fix-box">
+  <div class="label">修正方案</div>
+  將 contextPanel 的 anonymous JPanel override 方法從
+  <code>paintComponent</code> 改為 <code>paintChildren</code>，
+  讓紅點在所有子元件繪製完畢後才畫，確保永遠在最上層。
+<pre>
+<span class="comment">// 修正前</span>
+<span class="keyword">protected void</span> paintComponent(Graphics g) {
+    super.paintComponent(g);
+    drawPortHints(g);  <span class="comment">// 在子元件之前畫 → 被蓋住</span>
+}
+
+<span class="comment">// 修正後</span>
+<span class="keyword">protected void</span> paintChildren(Graphics g) {
+    super.paintChildren(g);
+    drawPortHints(g);  <span class="comment">// 在子元件之後畫 → 永遠在最上層</span>
+}
+</pre>
+</div>
+
+<h3 class="sub-sub-title">Bug 4 — 從物件內部無法啟動連線拖曳</h3>
+<div class="bug-box">
+  <div class="label">問題描述</div>
+  這是最核心的 Bug。當使用者在 BasicClass / UseCase 內部按下滑鼠開始拖曳時，
+  連線幾乎都失敗。原因是 Swing 的 <code>LightweightDispatcher</code> 事件分派機制：
+  子元件（BasicClass）雖然沒有 <code>MouseListener</code>，
+  但有 <code>MouseMotionListener</code>，Swing 因此將 mouse press 事件分派給子元件，
+  contextPanel 的 <code>CPHActionListener</code> 完全收不到 <code>mousePressed</code>，
+  導致 <code>from</code> 點從未被設定，連線必然失敗。
+</div>
+<div class="fix-box">
+  <div class="label">修正方案（三層修正）</div>
+  <ol>
+    <li>在 <code>CanvasPanelHandler</code> 將 <code>CPHActionListener</code> 改存為欄位 <code>cphListener</code></li>
+    <li>在 <code>addObject()</code> 為每個新建物件加上 <code>MouseAdapter</code>，
+        將事件轉換座標後轉發給 <code>cphListener</code></li>
+    <li>新增 <code>isInsideWithTolerance()</code> 方法（±15px 容許誤差）</li>
+  </ol>
+<pre>
+obj.addMouseListener(<span class="keyword">new</span> MouseAdapter() {
+    @Override
+    <span class="keyword">public void</span> mousePressed(MouseEvent e) {
+        Point p = SwingUtilities.convertPoint(obj, e.getPoint(), contextPanel);
+        cphListener.mousePressed(<span class="keyword">new</span> MouseEvent(
+            contextPanel, e.getID(), e.getWhen(),
+            e.getModifiersEx(), p.x, p.y, e.getClickCount(), <span class="keyword">false</span>));
+    }
+    <span class="comment">// mouseReleased / mouseClicked 同理</span>
+});
+</pre>
+</div>
+
+<h3 class="sub-sub-title">Bug 5 — mouseClicked 在拖曳後仍觸發導致重複建立物件</h3>
+<div class="bug-box">
+  <div class="label">問題描述</div>
+  Java Swing 的 <code>mouseClicked</code> 在滑鼠移動後仍然會觸發，
+  導致拖曳建立物件後，<code>mouseClicked</code> 又呼叫一次 <code>addObject()</code>，
+  造成重複建立。
+</div>
+<div class="fix-box">
+  <div class="label">修正方案</div>
+  在 <code>CPHActionListener</code> 新增 <code>wasDragged</code> 旗標，
+  在 <code>mouseReleased</code> 時根據位移量（>5px）判斷，
+  <code>mouseClicked</code> 中若 <code>wasDragged == true</code> 則跳過。
+</div>
+
+<h2 class="sub-title">2.3 架構完整性確認</h2>
+<p>
+每次實作均在既有架構框架內進行，無重構行為：
+</p>
+<ul>
+  <li><strong>新增類別</strong>：<code>DependencyLine.java</code> 依照既有的 <code>AssociationLine</code> 結構實作，實作相同介面</li>
+  <li><strong>修改現有類別</strong>：均為最小範圍修改（新增方法或修改特定方法），未改變既有方法簽名</li>
+  <li><strong>分層原則</strong>：Handler 層處理邏輯，Listener 層處理事件，mod.instance 層處理繪圖，三層分工未被破壞</li>
+  <li><strong>編譯通過</strong>：每次修改後均以 <code>javac</code> 確認零錯誤</li>
+</ul>
+
+<!-- ===================== 第三章 ===================== -->
+<h1 class="section-title">3. 心得與反思</h1>
+
+<h2 class="sub-title">3.1 AI 協作的優勢</h2>
+
+<div class="reflection-card">
+  <h4>快速理解大型程式碼庫</h4>
+  <p>
+    傳統上要理解一個陌生 Java Swing 專案需要花大量時間閱讀程式碼。
+    透過 AI，只需要讓它讀取關鍵檔案，它就能快速建立各元件之間的依賴關係圖，
+    並在實作時精準定位需要修改的位置。
+    例如 AI 主動識別出 <code>FuncPanelHandler.init()</code> 的迴圈靠
+    <code>getIcon(index) != null</code> 決定按鈕數量，
+    因此只需要在 <code>getIcon(6)</code> 加入回傳值即可自動新增第七個按鈕，無需改動其他邏輯。
+  </p>
+</div>
+
+<div class="reflection-card">
+  <h4>深度技術知識的即時援用</h4>
+  <p>
+    本次最困難的 Bug（Swing 事件不從子元件傳遞到父元件）涉及到 Java AWT
+    <code>LightweightDispatcher</code> 的底層機制。
+    這類知識即使是有經驗的開發者也不一定熟悉。
+    AI 能夠直接指出根本原因並給出解法（<code>MouseAdapter</code> 轉發 +
+    <code>SwingUtilities.convertPoint()</code>），
+    節省了可能需要數小時的除錯時間。
+  </p>
+</div>
+
+<div class="reflection-card">
+  <h4>截圖作為溝通橋樑</h4>
+  <p>
+    在 UI 開發中，「描述問題」往往很困難。本次協作發現截圖是最有效的溝通方式，
+    讓 AI 能直接觀察「紅點被遮住」、「物件大小看起來沒有改變」等視覺問題，
+    大幅縮短了問題描述的成本。
+  </p>
+</div>
+
+<h2 class="sub-title">3.2 AI 協作的限制與挑戰</h2>
+
+<div class="reflection-card">
+  <h4>需要人工執行驗證循環</h4>
+  <p>
+    AI 無法自行執行程式或看到程式執行結果。
+    每次實作後必須由使用者手動執行、截圖、描述問題，再回饋給 AI。
+    這個循環的效率取決於使用者描述問題的精確度——
+    「連不太起來」這樣的描述需要多輪追問，而「從物件內部按下開始拖曳時連線失敗」
+    則能讓 AI 更快定位問題。
+  </p>
+</div>
+
+<div class="reflection-card">
+  <h4>上下文長度的限制</h4>
+  <p>
+    隨著對話越來越長，AI 的上下文會達到上限並被壓縮摘要。
+    在跨對話的連續開發中，需要確保關鍵的技術決策和已知問題被明確記錄，
+    否則 AI 可能在下一輪重新提出已解決的方案。
+    本次使用了 <code>MEMORY.md</code> 持久記憶機制來緩解此問題。
+  </p>
+</div>
+
+<div class="reflection-card">
+  <h4>架構限制需明確重申</h4>
+  <p>
+    「不重構」的限制必須在每次提問時明確重申。
+    AI 有時會傾向提出更乾淨的重構方案，需要使用者主動提醒遵守既有架構約束。
+    這也提醒我們：<strong>Prompt 中的限制條件和 Prompt 中的需求同樣重要。</strong>
+  </p>
+</div>
+
+<h2 class="sub-title">3.3 策略建議</h2>
+
+<table>
+  <tr><th>策略</th><th>說明</th></tr>
+  <tr>
+    <td><span class="badge badge-blue">先讀後寫</span></td>
+    <td>先讓 AI 讀懂既有程式碼，再要求修改，避免 AI 憑空假設架構</td>
+  </tr>
+  <tr>
+    <td><span class="badge badge-green">小步迭代</span></td>
+    <td>每次只修改一個功能，立即編譯驗證，減少多個 Bug 同時出現的混亂</td>
+  </tr>
+  <tr>
+    <td><span class="badge badge-yellow">截圖優先</span></td>
+    <td>UI 問題優先使用截圖描述，比文字描述更直觀有效</td>
+  </tr>
+  <tr>
+    <td><span class="badge badge-red">明確限制</span></td>
+    <td>將「不能做什麼」（如不重構）明確寫在 Prompt 中，AI 才會遵守</td>
+  </tr>
+  <tr>
+    <td><span class="badge badge-blue">追問根本原因</span></td>
+    <td>Bug 修不好時，追問「根本原因是什麼」比直接要求重試更有效</td>
+  </tr>
+</table>
+
+<h2 class="sub-title">3.4 總結</h2>
+<p>
+本次 AI 協作開發經驗顯示，AI 在理解複雜程式庫、定位技術問題根因、
+以及生成符合既有架構的程式碼方面具有顯著優勢。
+然而，AI 無法自行執行程式，因此人機協作的核心仍然是：
+<strong>人負責執行與觀察，AI 負責分析與實作</strong>。
+</p>
+<p>
+整個開發過程中，最有價值的一課是：<em>清晰描述問題比請求 AI 直接修正更重要</em>。
+當我能精確說明「在物件內部按下後 contextPanel 收不到 mousePressed」時，
+AI 能夠立即提出根本解法；而當只說「連線連不上」時，
+則需要多輪對話才能收斂到正確答案。
+</p>
+<p>
+未來在使用 AI 協助開發時，建議投入時間在「問題表述的精確化」，
+這是提升 AI 協作效率的最關鍵因素。
+</p>
+
+</div><!-- end content -->
+</body>
+</html>

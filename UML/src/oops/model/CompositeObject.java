@@ -4,6 +4,7 @@ import java.awt.*;
 import java.util.ArrayList;
 import java.util.List;
 
+// Composite Pattern (Composite node)
 /**
  * 群組物件（Composite），由多個基本物件組合而成。
  * Composite 是樹狀結構，也就是說 Composite 裡面可以再包含 Composite。

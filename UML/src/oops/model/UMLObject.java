@@ -4,10 +4,16 @@ import java.awt.*;
 import java.util.ArrayList;
 import java.util.List;
 
+// Composite Pattern (Component) / Template Method Pattern
 /**
  * 所有 UML 物件的抽象基底類別。
  * 子類別包含 RectObject、OvalObject、CompositeObject。
  * 每個物件都有位置(x,y)、大小(width,height)、選取狀態、hover 狀態、以及標籤(label)。
+ *
+ * Template Method Pattern：
+ *   - draw() 是 hook（子類別各自實作外觀）
+ *   - contains() 是 hook（子類別各自判斷點擊命中）
+ *   - initPorts() 是 hook（子類別各自初始化 port 位置）
  */
 public abstract class UMLObject {
 

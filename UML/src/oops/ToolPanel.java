@@ -6,6 +6,7 @@ import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
 import java.util.function.Supplier;
 
+import oops.factory.*;
 import oops.mode.*;
 import oops.model.*;
 
@@ -45,14 +46,14 @@ public class ToolPanel extends JPanel {
 
         JButton selectBtn = createModeButton("Select", "select", SelectMode::new);
         JButton assocBtn  = createModeButton("Association", "association",
-                () -> new CreateLinkMode(CreateLinkMode.LinkType.ASSOCIATION));
+                () -> new CreateLinkMode(new AssociationLinkFactory()));
         JButton genBtn    = createModeButton("Generalization", "generalization",
-                () -> new CreateLinkMode(CreateLinkMode.LinkType.GENERALIZATION));
+                () -> new CreateLinkMode(new GeneralizationLinkFactory()));
         JButton compBtn   = createModeButton("Composition", "composition",
-                () -> new CreateLinkMode(CreateLinkMode.LinkType.COMPOSITION));
+                () -> new CreateLinkMode(new CompositionLinkFactory()));
 
-        JButton rectBtn = createObjectButton("Rect", "rect", true);
-        JButton ovalBtn = createObjectButton("Oval", "oval", false);
+        JButton rectBtn = createObjectButton("Rect", "rect", new RectShapeFactory());
+        JButton ovalBtn = createObjectButton("Oval", "oval", new OvalShapeFactory());
 
         add(selectBtn);
         add(assocBtn);
@@ -94,8 +95,9 @@ public class ToolPanel extends JPanel {
     /**
      * 建立一次性物件按鈕（Rect / Oval）。
      * 同時掛載 MouseListener（拖曳路徑）和 ActionListener（點擊路徑）。
+     * 使用 ShapeFactory（Factory Method Pattern）建立物件，不依賴具體類別。
      */
-    private JButton createObjectButton(String text, String iconType, boolean isRect) {
+    private JButton createObjectButton(String text, String iconType, ShapeFactory shapeFactory) {
         JButton btn = new JButton(text);
         styleButton(btn, iconType);
 
@@ -116,12 +118,10 @@ public class ToolPanel extends JPanel {
                 // 將按鈕本地座標轉換為畫布座標
                 Point pt = SwingUtilities.convertPoint(btn, e.getPoint(), canvas);
                 if (canvas.contains(pt)) {
-                    // 在畫布上放開 → 建立物件
+                    // 在畫布上放開 → 透過 ShapeFactory 建立物件
                     int w = 150, h = 100;
-                    UMLObject obj = isRect
-                            ? new RectObject(pt.x - w / 2, pt.y - h / 2, w, h)
-                            : new OvalObject(pt.x - w / 2, pt.y - h / 2, w, h);
-                    canvas.addObject(obj);
+                    UMLObject obj = shapeFactory.create(pt.x - w / 2, pt.y - h / 2, w, h);
+                    canvas.getModel().addObject(obj);
                     dragCreated = true;
                     restoreSavedState(); // 恢復原模式和按鈕
                 }
@@ -141,7 +141,7 @@ public class ToolPanel extends JPanel {
                 savedButton = null;
 
                 // 切換到 CreateObjectMode，建立後自動恢復
-                canvas.setMode(new CreateObjectMode(isRect, () -> {
+                canvas.setMode(new CreateObjectMode(shapeFactory, () -> {
                     if (pb != null) highlightButton(pb);
                     if (pm != null) canvas.setMode(pm);
                     canvas.setCursor(Cursor.getDefaultCursor());

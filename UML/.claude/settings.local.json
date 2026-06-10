@@ -2,7 +2,10 @@
   "permissions": {
     "allow": [
       "Bash(cmd.exe:*)",
-      "Bash(ls /mnt/d/OO/*.pdf)"
+      "Bash(ls /mnt/d/OO/*.pdf)",
+      "Skill(codex:rescue)",
+      "PowerShell(Start-Process -FilePath \"java\" -ArgumentList \"-cp\", \"out\", \"oops.UMLEditor\" -WorkingDirectory \"D:\\\\OO\\\\UML\" -WindowStyle Normal)",
+      "Bash(bash *)"
     ]
   }
 }

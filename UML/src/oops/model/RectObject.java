@@ -2,6 +2,7 @@ package oops.model;
 
 import java.awt.*;
 
+// Composite Pattern (Leaf)
 /**
  * 矩形物件，擁有 8 個 port（四個角落 + 四個邊中點）。
  */

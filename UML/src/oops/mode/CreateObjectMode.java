@@ -4,10 +4,14 @@ import java.awt.*;
 import java.awt.event.MouseEvent;
 
 import oops.Canvas;
+import oops.factory.ShapeFactory;
 import oops.model.*;
 
+// Strategy Pattern
 /**
  * 建立物件模式（Use Case A — 點擊按鈕後的畫布拖曳路徑）。
+ * 採用 Factory Method Pattern：透過注入的 ShapeFactory 建立物件，
+ * 不直接依賴具體物件類別（RectObject、OvalObject）。
  *
  * 互動流程：
  *   1. mousePressed  → 記錄拖曳起點
@@ -20,15 +24,15 @@ import oops.model.*;
  */
 public class CreateObjectMode implements Mode {
 
-    private final boolean isRect;
-    private final Runnable onCreated; // 建立完成後恢復原模式的 callback
+    private final ShapeFactory factory;
+    private final Runnable onCreated;
 
     private int startX, startY;
     private int currX, currY;
     private boolean dragging = false;
 
-    public CreateObjectMode(boolean isRect, Runnable onCreated) {
-        this.isRect = isRect;
+    public CreateObjectMode(ShapeFactory factory, Runnable onCreated) {
+        this.factory = factory;
         this.onCreated = onCreated;
     }
 
@@ -46,7 +50,7 @@ public class CreateObjectMode implements Mode {
         if (!dragging) return;
         currX = e.getX();
         currY = e.getY();
-        canvas.repaint();
+        canvas.getModel().refresh();
     }
 
     @Override
@@ -54,18 +58,14 @@ public class CreateObjectMode implements Mode {
         if (!dragging) return;
         dragging = false;
 
-        // 計算物件的左上角和大小（支援任意方向拖曳）
         int x = Math.min(startX, e.getX());
         int y = Math.min(startY, e.getY());
         int w = Math.max(UMLObject.MIN_SIZE, Math.abs(e.getX() - startX));
         int h = Math.max(UMLObject.MIN_SIZE, Math.abs(e.getY() - startY));
 
-        UMLObject obj = isRect
-                ? new RectObject(x, y, w, h)
-                : new OvalObject(x, y, w, h);
-        canvas.addObject(obj);
+        UMLObject obj = factory.create(x, y, w, h);
+        canvas.getModel().addObject(obj);
 
-        // 建立完成後自動恢復原模式（Use Case A Step 6）
         onCreated.run();
     }
 
@@ -78,7 +78,6 @@ public class CreateObjectMode implements Mode {
     public void draw(Graphics2D g) {
         if (!dragging) return;
 
-        // 拖曳時顯示預覽外框（虛線），讓使用者看清楚物件會被畫在哪
         int x = Math.min(startX, currX);
         int y = Math.min(startY, currY);
         int w = Math.abs(currX - startX);
@@ -89,11 +88,7 @@ public class CreateObjectMode implements Mode {
         g.setStroke(new BasicStroke(1.5f, BasicStroke.CAP_BUTT,
                 BasicStroke.JOIN_MITER, 10f, new float[]{6f, 3f}, 0f));
 
-        if (isRect) {
-            g.drawRect(x, y, w, h);
-        } else {
-            g.drawOval(x, y, w, h);
-        }
+        factory.drawPreview(g, x, y, w, h);
         g.setStroke(old);
     }
 }

@@ -2,6 +2,7 @@ package oops.model;
 
 import java.awt.*;
 
+// Template Method Pattern (Concrete Class) / Factory Method Pattern (Product)
 /**
  * Association 連線：在終點繪製一個簡單的 V 形箭頭 (←)。
  */

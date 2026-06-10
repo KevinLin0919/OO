@@ -1,0 +1,75 @@
+<svg width="100%" viewBox="0 0 860 620" xmlns="http://www.w3.org/2000/svg" font-family="'Microsoft JhengHei','Noto Sans TC',Arial,sans-serif">
+
+  <!-- 科目 x=310 y=30 w=210 -->
+  <rect x="310" y="30"  width="210" height="28" fill="#C8C8C8" stroke="#111" stroke-width="1.5"/>
+  <text x="415" y="49" text-anchor="middle" font-size="13" font-weight="bold">科目</text>
+  <rect x="310" y="58"  width="210" height="34" fill="#FFF" stroke="#111" stroke-width="1.5"/>
+  <text x="318" y="74"  font-size="11">- subjectName : String</text>
+
+  <!-- 老師 x=20 y=200 w=220 -->
+  <rect x="20"  y="200" width="220" height="28" fill="#C8C8C8" stroke="#111" stroke-width="1.5"/>
+  <text x="130" y="219" text-anchor="middle" font-size="13" font-weight="bold">老師</text>
+  <rect x="20"  y="228" width="220" height="68" fill="#FFF" stroke="#111" stroke-width="1.5"/>
+  <text x="28"  y="244" font-size="11">- teacherID : String</text>
+  <text x="28"  y="261" font-size="11">- name : String</text>
+  <text x="28"  y="278" font-size="11">- department : String</text>
+
+  <!-- 開課科目 x=280 y=200 w=260 -->
+  <rect x="280" y="200" width="260" height="28" fill="#C8C8C8" stroke="#111" stroke-width="1.5"/>
+  <text x="410" y="219" text-anchor="middle" font-size="13" font-weight="bold">開課科目</text>
+  <rect x="280" y="228" width="260" height="102" fill="#FFF" stroke="#111" stroke-width="1.5"/>
+  <text x="288" y="244" font-size="11">- teachingHours : int</text>
+  <text x="288" y="261" font-size="11">- classroom : String</text>
+  <text x="288" y="278" font-size="11">- timeSlot : String</text>
+  <text x="288" y="295" font-size="11">- grade : int</text>
+  <text x="288" y="312" font-size="11">- className : String</text>
+
+  <!-- 學生 x=610 y=200 w=220 -->
+  <rect x="610" y="200" width="220" height="28" fill="#C8C8C8" stroke="#111" stroke-width="1.5"/>
+  <text x="720" y="219" text-anchor="middle" font-size="13" font-weight="bold">學生</text>
+  <rect x="610" y="228" width="220" height="102" fill="#FFF" stroke="#111" stroke-width="1.5"/>
+  <text x="618" y="244" font-size="11">- idNumber : String</text>
+  <text x="618" y="261" font-size="11">- studentID : String</text>
+  <text x="618" y="278" font-size="11">- name : String</text>
+  <text x="618" y="295" font-size="11">- grade : int</text>
+  <text x="618" y="312" font-size="11">- address : String</text>
+
+  <!-- 班級 x=280 y=460 w=260 -->
+  <rect x="280" y="460" width="260" height="28" fill="#C8C8C8" stroke="#111" stroke-width="1.5"/>
+  <text x="410" y="479" text-anchor="middle" font-size="13" font-weight="bold">班級</text>
+  <rect x="280" y="488" width="260" height="68" fill="#FFF" stroke="#111" stroke-width="1.5"/>
+  <text x="288" y="504" font-size="11">- classID : String</text>
+  <text x="288" y="521" font-size="11">- grade : int</text>
+  <text x="288" y="538" font-size="11">- className : String</text>
+
+  <!-- 科目 → 開課科目 (1 to *) -->
+  <line x1="415" y1="92"  x2="415" y2="200" stroke="#111" stroke-width="1.5"/>
+  <polyline points="408,191 415,200 422,191" fill="none" stroke="#111" stroke-width="1.5"/>
+  <text x="422" y="106" font-size="12" font-weight="bold">1</text>
+  <text x="422" y="192" font-size="12" font-weight="bold">*</text>
+
+  <!-- 老師 → 開課科目 (1 to *) -->
+  <line x1="240" y1="262" x2="280" y2="262" stroke="#111" stroke-width="1.5"/>
+  <polyline points="271,255 280,262 271,269" fill="none" stroke="#111" stroke-width="1.5"/>
+  <text x="243" y="257" font-size="12" font-weight="bold">1</text>
+  <text x="257" y="257" font-size="12" font-weight="bold">*</text>
+
+  <!-- 學生 → 開課科目 (* to *) -->
+  <line x1="610" y1="262" x2="540" y2="262" stroke="#111" stroke-width="1.5"/>
+  <polyline points="549,255 540,262 549,269" fill="none" stroke="#111" stroke-width="1.5"/>
+  <text x="595" y="257" font-size="12" font-weight="bold">*</text>
+  <text x="545" y="257" font-size="12" font-weight="bold">*</text>
+
+  <!-- 老師 → 班級 (1 to 1) -->
+  <polyline points="130,296 130,494 280,494" fill="none" stroke="#111" stroke-width="1.5"/>
+  <polyline points="271,487 280,494 271,501" fill="none" stroke="#111" stroke-width="1.5"/>
+  <text x="136" y="310" font-size="12" font-weight="bold">1</text>
+  <text x="259" y="489" font-size="12" font-weight="bold">1</text>
+
+  <!-- 學生 → 班級 (* to 1) -->
+  <polyline points="720,330 720,494 540,494" fill="none" stroke="#111" stroke-width="1.5"/>
+  <polyline points="549,487 540,494 549,501" fill="none" stroke="#111" stroke-width="1.5"/>
+  <text x="726" y="344" font-size="12" font-weight="bold">*</text>
+  <text x="556" y="489" font-size="12" font-weight="bold">1</text>
+
+</svg>

@@ -2,6 +2,7 @@ package oops.model;
 
 import java.awt.*;
 
+// Template Method Pattern (Concrete Class) / Factory Method Pattern (Product)
 /**
  * Composition 連線：在終點繪製一個空心菱形箭頭 (◇)。
  */

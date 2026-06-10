@@ -6,6 +6,7 @@ import java.util.List;
 
 import oops.model.*;
 
+// MVC - Controller
 /**
  * Oops UML Editor 主程式。
  * 這是一個簡易的 Workflow Design 編輯器，支援：
@@ -17,10 +18,11 @@ import oops.model.*;
  *   F. 調整物件大小 (Resize)
  *   G. 自定義標籤 (Label)
  *
- * 架構說明：
- *   - Model 層：UMLObject（RectObject, OvalObject, CompositeObject）、ConnectionLine、Port
- *   - Mode 層（Strategy Pattern）：Mode 介面 + SelectMode、CreateLinkMode
- *   - View/Controller 層：UMLEditor（JFrame）、Canvas（JPanel）、ToolPanel（JPanel）
+ * 架構說明（MVC）：
+ *   - Model 層：UMLModel、UMLObject（RectObject, OvalObject, CompositeObject）、ConnectionLine、Port
+ *   - View 層：Canvas（ModelObserver，Observer Pattern）
+ *   - Controller 層：UMLEditor（JFrame）、ToolPanel（JPanel）
+ *   - Mode 層（Strategy Pattern）：Mode 介面 + SelectMode、CreateObjectMode、CreateLinkMode
  */
 public class UMLEditor extends JFrame {
 
@@ -32,8 +34,9 @@ public class UMLEditor extends JFrame {
         setSize(1100, 750);
         setLocationRelativeTo(null);
 
-        // 建立畫布
-        canvas = new Canvas();
+        // MVC：先建立 Model，再建立 View，Observer Pattern 在 Canvas 建構子內注冊
+        UMLModel model = new UMLModel();
+        canvas = new Canvas(model);
 
         // 建立左側工具列
         ToolPanel toolPanel = new ToolPanel(canvas);
@@ -62,11 +65,11 @@ public class UMLEditor extends JFrame {
         JMenu editMenu = new JMenu("Edit");
 
         JMenuItem groupItem = new JMenuItem("Group");
-        groupItem.addActionListener(e -> canvas.groupSelectedObjects());
+        groupItem.addActionListener(e -> canvas.getModel().groupSelectedObjects());
         editMenu.add(groupItem);
 
         JMenuItem ungroupItem = new JMenuItem("Ungroup");
-        ungroupItem.addActionListener(e -> canvas.ungroupSelectedObject());
+        ungroupItem.addActionListener(e -> canvas.getModel().ungroupSelectedObject());
         editMenu.add(ungroupItem);
 
         editMenu.addSeparator();
@@ -84,7 +87,7 @@ public class UMLEditor extends JFrame {
      * 前提：恰好有 1 個基本物件（非 Composite）被選取。
      */
     private void showLabelDialog() {
-        List<UMLObject> selected = canvas.getSelectedObjects();
+        List<UMLObject> selected = canvas.getModel().getSelectedObjects();
         if (selected.size() != 1) return;
 
         UMLObject obj = selected.get(0);
@@ -136,7 +139,7 @@ public class UMLEditor extends JFrame {
         okBtn.addActionListener(e -> {
             obj.setLabelName(nameField.getText());
             obj.setLabelColor(colorBtn.getBackground());
-            canvas.repaint();
+            canvas.getModel().refresh();
             dialog.dispose();
         });
 

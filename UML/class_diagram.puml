@@ -1,0 +1,424 @@
+@startuml OopsUMLEditor_ClassDiagram
+
+!pragma layout smetana
+
+skinparam classAttributeIconSize 0
+skinparam classFontSize 12
+skinparam classHeaderBackgroundColor #DDEEFF
+skinparam classBackgroundColor #FFFFFF
+skinparam classBorderColor #336699
+skinparam arrowColor #336699
+skinparam arrowThickness 1.5
+skinparam packageBackgroundColor #F5F5FF
+skinparam packageBorderColor #AAAACC
+skinparam linetype ortho
+skinparam padding 5
+skinparam nodesep 50
+skinparam ranksep 50
+
+title Oops UML Editor — Class Diagram\n(MVC + Strategy + Composite + Template Method + Factory Method + Observer)
+
+' ============================================================
+'  Package: oops  (MVC — Controller layer)
+' ============================================================
+package oops <<Controller (MVC)>> {
+
+    class UMLEditor <<JFrame>> {
+        - canvas : Canvas
+        + UMLEditor()
+        - createMenuBar() : JMenuBar
+        - showLabelDialog() : void
+        + main(args : String[]) : void
+    }
+
+    class Canvas <<JPanel>> {
+        - model : UMLModel
+        - currentMode : Mode
+        + Canvas(model : UMLModel)
+        + onModelChanged() : void
+        + getModel() : UMLModel
+        + setMode(mode : Mode) : void
+        + getMode() : Mode
+        + paintComponent(g : Graphics) : void
+        + mousePressed(e : MouseEvent) : void
+        + mouseDragged(e : MouseEvent) : void
+        + mouseReleased(e : MouseEvent) : void
+        + mouseMoved(e : MouseEvent) : void
+    }
+
+    class ToolPanel <<JPanel>> {
+        - canvas : Canvas
+        - highlightedButton : JButton
+        - savedMode : Mode
+        - savedButton : JButton
+        - dragCreated : boolean
+        + ToolPanel(canvas : Canvas)
+        - createModeButton(text : String, iconType : String, modeFactory : Supplier<Mode>) : JButton
+        - createObjectButton(text : String, iconType : String, factory : ShapeFactory) : JButton
+        - highlightButton(btn : JButton) : void
+        - restoreSavedState() : void
+    }
+}
+
+' ============================================================
+'  Package: oops.model  (MVC — Model layer)
+' ============================================================
+package oops.model <<Model (MVC)>> {
+
+    interface ModelObserver <<interface>> {
+        + onModelChanged() : void
+    }
+
+    note top of ModelObserver
+      Observer Pattern:
+      Subject = UMLModel
+      Observer = Canvas
+    end note
+
+    class UMLModel {
+        - objects : List<UMLObject>
+        - lines : List<ConnectionLine>
+        - observers : List<ModelObserver>
+        - hoveredObject : UMLObject
+        + addObserver(observer : ModelObserver) : void
+        + refresh() : void
+        + addObject(obj : UMLObject) : void
+        + addConnectionLine(line : ConnectionLine) : void
+        + getObjects() : List<UMLObject>
+        + getLines() : List<ConnectionLine>
+        + getObjectAt(x : int, y : int) : UMLObject
+        + getBasicObjectAt(x : int, y : int) : UMLObject
+        + getPortAt(x : int, y : int) : Port
+        + bringToFront(obj : UMLObject) : void
+        + deselectAll() : void
+        + setHoveredObject(obj : UMLObject) : void
+        + getHoveredObject() : UMLObject
+        + selectObjectsInRect(rect : Rectangle) : void
+        + getSelectedObjects() : List<UMLObject>
+        + groupSelectedObjects() : void
+        + ungroupSelectedObject() : void
+        - notifyObservers() : void
+    }
+
+    abstract class UMLObject {
+        # x : int
+        # y : int
+        # width : int
+        # height : int
+        # selected : boolean
+        # hovered : boolean
+        # labelName : String
+        # labelColor : Color
+        # ports : List<Port>
+        + {static} MIN_SIZE : int = 20
+        + UMLObject(x : int, y : int, width : int, height : int)
+        # {abstract} initPorts() : void
+        + {abstract} draw(g : Graphics2D) : void
+        + {abstract} contains(px : int, py : int) : boolean
+        + getPortAt(px : int, py : int) : Port
+        + move(dx : int, dy : int) : void
+        + setBounds(x : int, y : int, width : int, height : int) : void
+        + getPorts() : List<Port>
+    }
+
+    note right of UMLObject
+      Composite Pattern: Component
+      Template Method Pattern:
+        draw(), contains(), initPorts()
+        are abstract hooks
+    end note
+
+    class RectObject {
+        + RectObject(x : int, y : int, width : int, height : int)
+        # initPorts() : void
+        + draw(g : Graphics2D) : void
+        + contains(px : int, py : int) : boolean
+    }
+
+    note right of RectObject
+      Composite Pattern: Leaf
+      Has 8 Ports: TL TC TR ML MR BL BC BR
+    end note
+
+    class OvalObject {
+        + OvalObject(x : int, y : int, width : int, height : int)
+        # initPorts() : void
+        + draw(g : Graphics2D) : void
+        + contains(px : int, py : int) : boolean
+    }
+
+    note right of OvalObject
+      Composite Pattern: Leaf
+      Has 4 Ports: TC MR BC ML
+    end note
+
+    class CompositeObject {
+        - children : List<UMLObject>
+        + CompositeObject(children : List<UMLObject>)
+        # initPorts() : void
+        + updateBounds() : void
+        + draw(g : Graphics2D) : void
+        + contains(px : int, py : int) : boolean
+        + move(dx : int, dy : int) : void
+        + getChildren() : List<UMLObject>
+        + getAllBasicObjects() : List<UMLObject>
+    }
+
+    note bottom of CompositeObject
+      Composite Pattern: Composite node
+      Children can be Leaf or Composite.
+      No ports; cannot be resized/linked.
+    end note
+
+    abstract class ConnectionLine {
+        # source : UMLObject
+        # destination : UMLObject
+        # sourcePort : Port
+        # destPort : Port
+        + ConnectionLine(source : UMLObject, sourcePort : Port,\n  destination : UMLObject, destPort : Port)
+        + draw(g : Graphics2D) : void
+        # {abstract} drawArrowHead(g : Graphics2D, start : Point, end : Point) : void
+        + isConnectedTo(obj : UMLObject) : boolean
+        + getSource() : UMLObject
+        + getDestination() : UMLObject
+    }
+
+    note right of ConnectionLine
+      Template Method Pattern:
+        draw() = template method
+        drawArrowHead() = abstract hook
+    end note
+
+    class AssociationLine {
+        + AssociationLine(source : UMLObject, sourcePort : Port,\n  destination : UMLObject, destPort : Port)
+        # drawArrowHead(g : Graphics2D, start : Point, end : Point) : void
+    }
+
+    note right of AssociationLine
+      Arrow: open V-shape (←)
+    end note
+
+    class GeneralizationLine {
+        + GeneralizationLine(source : UMLObject, sourcePort : Port,\n  destination : UMLObject, destPort : Port)
+        # drawArrowHead(g : Graphics2D, start : Point, end : Point) : void
+    }
+
+    note right of GeneralizationLine
+      Arrow: hollow triangle (◁)
+    end note
+
+    class CompositionLine {
+        + CompositionLine(source : UMLObject, sourcePort : Port,\n  destination : UMLObject, destPort : Port)
+        # drawArrowHead(g : Graphics2D, start : Point, end : Point) : void
+    }
+
+    note right of CompositionLine
+      Arrow: hollow diamond (◇)
+    end note
+
+    class Port {
+        - position : Position
+        - owner : UMLObject
+        - {static} PORT_SIZE : int = 10
+        + Port(position : Position, owner : UMLObject)
+        + getCenter() : Point
+        + contains(px : int, py : int) : boolean
+        + draw(g : Graphics2D) : void
+        + getPosition() : Position
+        + getOwner() : UMLObject
+    }
+
+    enum "Port.Position" as PortPosition {
+        TOP_LEFT
+        TOP_CENTER
+        TOP_RIGHT
+        MIDDLE_LEFT
+        MIDDLE_RIGHT
+        BOTTOM_LEFT
+        BOTTOM_CENTER
+        BOTTOM_RIGHT
+    }
+}
+
+' ============================================================
+'  Package: oops.mode  (Strategy Pattern — Mode layer)
+' ============================================================
+package oops.mode <<Strategy Pattern>> {
+
+    interface Mode <<interface>> {
+        + mousePressed(e : MouseEvent, canvas : Canvas) : void
+        + mouseDragged(e : MouseEvent, canvas : Canvas) : void
+        + mouseReleased(e : MouseEvent, canvas : Canvas) : void
+        + mouseMoved(e : MouseEvent, canvas : Canvas) : void
+        + draw(g : Graphics2D) : void
+    }
+
+    class SelectMode {
+        - currentAction : Action
+        - pressX : int
+        - pressY : int
+        - targetObject : UMLObject
+        - selectionRect : Rectangle
+        - resizePosition : Port.Position
+        - anchorX : int
+        - anchorY : int
+        - controlsX : boolean
+        - controlsY : boolean
+        + mousePressed(e : MouseEvent, canvas : Canvas) : void
+        + mouseDragged(e : MouseEvent, canvas : Canvas) : void
+        + mouseReleased(e : MouseEvent, canvas : Canvas) : void
+        + mouseMoved(e : MouseEvent, canvas : Canvas) : void
+        + draw(g : Graphics2D) : void
+        - startResize(obj : UMLObject, port : Port, model : UMLModel) : void
+        - performResize(mx : int, my : int) : void
+    }
+
+    enum "SelectMode.Action" as SelectAction {
+        NONE
+        MOVE
+        RESIZE
+        AREA_SELECT
+    }
+
+    class CreateObjectMode {
+        - factory : ShapeFactory
+        - onCreated : Runnable
+        - startX : int
+        - startY : int
+        - currX : int
+        - currY : int
+        - dragging : boolean
+        + CreateObjectMode(factory : ShapeFactory, onCreated : Runnable)
+        + mousePressed(e : MouseEvent, canvas : Canvas) : void
+        + mouseDragged(e : MouseEvent, canvas : Canvas) : void
+        + mouseReleased(e : MouseEvent, canvas : Canvas) : void
+        + mouseMoved(e : MouseEvent, canvas : Canvas) : void
+        + draw(g : Graphics2D) : void
+    }
+
+    class CreateLinkMode {
+        - factory : LinkFactory
+        - sourceObject : UMLObject
+        - sourcePort : Port
+        - currentMouse : Point
+        - dragging : boolean
+        + CreateLinkMode(factory : LinkFactory)
+        + mousePressed(e : MouseEvent, canvas : Canvas) : void
+        + mouseDragged(e : MouseEvent, canvas : Canvas) : void
+        + mouseReleased(e : MouseEvent, canvas : Canvas) : void
+        + mouseMoved(e : MouseEvent, canvas : Canvas) : void
+        + draw(g : Graphics2D) : void
+    }
+}
+
+' ============================================================
+'  Package: oops.factory  (Factory Method Pattern)
+' ============================================================
+package oops.factory <<Factory Method Pattern>> {
+
+    interface ShapeFactory <<interface>> {
+        + create(x : int, y : int, w : int, h : int) : UMLObject
+        + drawPreview(g : Graphics2D, x : int, y : int, w : int, h : int) : void
+    }
+
+    class RectShapeFactory {
+        + create(x : int, y : int, w : int, h : int) : UMLObject
+        + drawPreview(g : Graphics2D, x : int, y : int, w : int, h : int) : void
+    }
+
+    class OvalShapeFactory {
+        + create(x : int, y : int, w : int, h : int) : UMLObject
+        + drawPreview(g : Graphics2D, x : int, y : int, w : int, h : int) : void
+    }
+
+    interface LinkFactory <<interface>> {
+        + create(source : UMLObject, sourcePort : Port,\n  destination : UMLObject, destPort : Port) : ConnectionLine
+    }
+
+    class AssociationLinkFactory {
+        + create(source : UMLObject, sourcePort : Port,\n  destination : UMLObject, destPort : Port) : ConnectionLine
+    }
+
+    class GeneralizationLinkFactory {
+        + create(source : UMLObject, sourcePort : Port,\n  destination : UMLObject, destPort : Port) : ConnectionLine
+    }
+
+    class CompositionLinkFactory {
+        + create(source : UMLObject, sourcePort : Port,\n  destination : UMLObject, destPort : Port) : ConnectionLine
+    }
+}
+
+' ============================================================
+'  Relationships — MVC wiring
+' ============================================================
+UMLEditor "1" *-- "1" Canvas        : contains
+UMLEditor "1" *-- "1" ToolPanel     : contains
+UMLEditor ..> UMLModel              : creates >
+ToolPanel "1" --> "1" Canvas        : uses >
+
+Canvas ..|> ModelObserver           : implements (Observer)
+Canvas "1" --> "1" UMLModel         : model >
+Canvas "1" --> "0..1" Mode          : currentMode >
+
+UMLModel "1" --> "0..*" ModelObserver : notifies >
+UMLModel "1" o-- "0..*" UMLObject   : objects >
+UMLModel "1" o-- "0..*" ConnectionLine : lines >
+
+' ============================================================
+'  Relationships — Strategy Pattern (Mode)
+' ============================================================
+Mode <|.. SelectMode
+Mode <|.. CreateObjectMode
+Mode <|.. CreateLinkMode
+
+SelectMode +-- SelectAction
+SelectMode "1" --> "0..1" UMLObject  : targetObject >
+SelectMode "1" --> "0..1" Port       : resizePort >
+
+CreateObjectMode "1" --> "1" ShapeFactory : factory >
+CreateLinkMode   "1" --> "1" LinkFactory  : factory >
+
+' ============================================================
+'  Relationships — Factory Method Pattern
+' ============================================================
+ShapeFactory <|.. RectShapeFactory
+ShapeFactory <|.. OvalShapeFactory
+
+LinkFactory <|.. AssociationLinkFactory
+LinkFactory <|.. GeneralizationLinkFactory
+LinkFactory <|.. CompositionLinkFactory
+
+RectShapeFactory ..> RectObject      : creates >
+OvalShapeFactory ..> OvalObject      : creates >
+AssociationLinkFactory   ..> AssociationLine   : creates >
+GeneralizationLinkFactory ..> GeneralizationLine : creates >
+CompositionLinkFactory   ..> CompositionLine   : creates >
+
+ToolPanel ..> ShapeFactory  : injects >
+ToolPanel ..> LinkFactory   : injects >
+
+' ============================================================
+'  Relationships — Composite Pattern (UMLObject hierarchy)
+' ============================================================
+UMLObject <|-- RectObject
+UMLObject <|-- OvalObject
+UMLObject <|-- CompositeObject
+CompositeObject "1" *-- "2..*" UMLObject : children >
+
+UMLObject "1" *-- "0..8" Port : ports >
+Port "1" --> "1" UMLObject    : owner >
+Port +-- PortPosition
+
+' ============================================================
+'  Relationships — Template Method Pattern (ConnectionLine)
+' ============================================================
+ConnectionLine <|-- AssociationLine
+ConnectionLine <|-- GeneralizationLine
+ConnectionLine <|-- CompositionLine
+
+ConnectionLine "1" --> "1" UMLObject : source >
+ConnectionLine "1" --> "1" UMLObject : destination >
+ConnectionLine "1" --> "1" Port      : sourcePort >
+ConnectionLine "1" --> "1" Port      : destPort >
+
+@enduml
