@@ -1,0 +1,1469 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>AI 協作設計報告 — OopsUMLEditor 物件導向重構</title>
+  <style>
+    :root {
+      --primary: #2563eb;
+      --primary-dark: #1d4ed8;
+      --secondary: #7c3aed;
+      --accent: #059669;
+      --warn: #d97706;
+      --bg: #f8fafc;
+      --card: #ffffff;
+      --border: #e2e8f0;
+      --text: #1e293b;
+      --muted: #64748b;
+      --code-bg: #1e293b;
+      --code-text: #e2e8f0;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: 'Segoe UI', 'PingFang TC', 'Noto Sans TC', sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      line-height: 1.7;
+      font-size: 15px;
+    }
+
+    /* ── Header ── */
+    header {
+      background: linear-gradient(135deg, #1e3a8a 0%, #2563eb 50%, #7c3aed 100%);
+      color: white;
+      padding: 48px 40px 40px;
+      position: relative;
+      overflow: hidden;
+    }
+    header::before {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background: url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%23ffffff' fill-opacity='0.05'%3E%3Cpath d='M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E");
+    }
+    header .inner { position: relative; max-width: 1100px; margin: 0 auto; }
+    header .badge {
+      display: inline-block;
+      background: rgba(255,255,255,0.2);
+      border: 1px solid rgba(255,255,255,0.3);
+      border-radius: 20px;
+      padding: 4px 14px;
+      font-size: 12px;
+      font-weight: 600;
+      letter-spacing: 0.5px;
+      text-transform: uppercase;
+      margin-bottom: 16px;
+    }
+    header h1 {
+      font-size: 2.4rem;
+      font-weight: 800;
+      letter-spacing: -0.5px;
+      line-height: 1.2;
+      margin-bottom: 12px;
+    }
+    header .subtitle {
+      font-size: 1.1rem;
+      opacity: 0.85;
+      margin-bottom: 28px;
+    }
+    header .meta {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 20px;
+      font-size: 13px;
+      opacity: 0.8;
+    }
+    header .meta span { display: flex; align-items: center; gap: 6px; }
+
+    /* ── Nav ── */
+    nav {
+      background: var(--card);
+      border-bottom: 1px solid var(--border);
+      position: sticky;
+      top: 0;
+      z-index: 100;
+      box-shadow: 0 1px 8px rgba(0,0,0,0.06);
+    }
+    nav ul {
+      max-width: 1100px;
+      margin: 0 auto;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0;
+      list-style: none;
+      padding: 0 24px;
+    }
+    nav ul li a {
+      display: block;
+      padding: 14px 16px;
+      font-size: 13px;
+      font-weight: 500;
+      color: var(--muted);
+      text-decoration: none;
+      border-bottom: 2px solid transparent;
+      transition: all 0.2s;
+    }
+    nav ul li a:hover { color: var(--primary); border-bottom-color: var(--primary); }
+
+    /* ── Layout ── */
+    main {
+      max-width: 1100px;
+      margin: 0 auto;
+      padding: 40px 24px 80px;
+    }
+
+    /* ── Sections ── */
+    section { margin-bottom: 60px; }
+    section:target { scroll-margin-top: 64px; }
+
+    h2 {
+      font-size: 1.7rem;
+      font-weight: 700;
+      color: var(--text);
+      margin-bottom: 24px;
+      padding-bottom: 12px;
+      border-bottom: 3px solid var(--primary);
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    h2 .num {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 36px;
+      height: 36px;
+      background: var(--primary);
+      color: white;
+      border-radius: 50%;
+      font-size: 15px;
+      font-weight: 700;
+      flex-shrink: 0;
+    }
+
+    h3 {
+      font-size: 1.15rem;
+      font-weight: 700;
+      color: var(--primary-dark);
+      margin: 28px 0 12px;
+    }
+    h4 {
+      font-size: 1rem;
+      font-weight: 600;
+      color: var(--secondary);
+      margin: 20px 0 8px;
+    }
+
+    p { margin-bottom: 14px; }
+
+    /* ── Cards ── */
+    .card {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 24px;
+      margin-bottom: 20px;
+      box-shadow: 0 1px 4px rgba(0,0,0,0.05);
+    }
+    .card-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+      gap: 16px;
+      margin-bottom: 20px;
+    }
+    .card-sm {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 18px;
+      box-shadow: 0 1px 4px rgba(0,0,0,0.04);
+    }
+    .card-sm .icon {
+      font-size: 1.8rem;
+      margin-bottom: 8px;
+    }
+    .card-sm strong { display: block; font-size: 0.9rem; margin-bottom: 4px; }
+    .card-sm p { font-size: 0.85rem; color: var(--muted); margin: 0; }
+
+    /* ── Code blocks ── */
+    pre {
+      background: var(--code-bg);
+      color: var(--code-text);
+      border-radius: 10px;
+      padding: 20px 24px;
+      overflow-x: auto;
+      font-size: 13px;
+      line-height: 1.6;
+      margin: 16px 0;
+      font-family: 'Cascadia Code', 'Fira Code', 'Consolas', monospace;
+    }
+    code {
+      background: #e2e8f0;
+      color: #0f172a;
+      padding: 2px 6px;
+      border-radius: 4px;
+      font-size: 13px;
+      font-family: 'Cascadia Code', 'Fira Code', 'Consolas', monospace;
+    }
+    pre code { background: transparent; color: inherit; padding: 0; font-size: inherit; }
+
+    /* Syntax highlight classes */
+    .kw { color: #93c5fd; }
+    .cl { color: #6ee7b7; }
+    .cm { color: #6b7280; font-style: italic; }
+    .st { color: #fca5a5; }
+    .fn { color: #fde68a; }
+    .nu { color: #c4b5fd; }
+
+    /* ── Prompt blocks ── */
+    .prompt-block {
+      border-left: 4px solid var(--primary);
+      background: #eff6ff;
+      border-radius: 0 10px 10px 0;
+      padding: 18px 20px;
+      margin: 16px 0;
+      font-size: 14px;
+    }
+    .prompt-block .label {
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: 0.8px;
+      text-transform: uppercase;
+      color: var(--primary);
+      margin-bottom: 8px;
+    }
+    .prompt-block.ai {
+      border-left-color: var(--secondary);
+      background: #f5f3ff;
+    }
+    .prompt-block.ai .label { color: var(--secondary); }
+    .prompt-block.cmd {
+      border-left-color: var(--accent);
+      background: #ecfdf5;
+    }
+    .prompt-block.cmd .label { color: var(--accent); }
+
+    /* ── Steps ── */
+    .steps { counter-reset: step-counter; }
+    .step {
+      display: flex;
+      gap: 16px;
+      margin-bottom: 20px;
+      position: relative;
+    }
+    .step::before {
+      content: counter(step-counter);
+      counter-increment: step-counter;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      width: 32px;
+      height: 32px;
+      background: var(--primary);
+      color: white;
+      border-radius: 50%;
+      font-size: 14px;
+      font-weight: 700;
+      flex-shrink: 0;
+      margin-top: 2px;
+    }
+    .step-body { flex: 1; }
+    .step-body strong { display: block; font-size: 0.95rem; margin-bottom: 6px; }
+
+    /* ── Pattern badges ── */
+    .pattern-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      padding: 3px 10px;
+      border-radius: 12px;
+      font-size: 12px;
+      font-weight: 600;
+      margin: 2px;
+    }
+    .p-strategy  { background: #dbeafe; color: #1d4ed8; }
+    .p-composite { background: #dcfce7; color: #15803d; }
+    .p-template  { background: #fef9c3; color: #a16207; }
+    .p-factory   { background: #fce7f3; color: #be185d; }
+    .p-observer  { background: #ede9fe; color: #6d28d9; }
+    .p-mvc       { background: #ffedd5; color: #c2410c; }
+
+    /* ── Tables ── */
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin: 16px 0;
+      font-size: 14px;
+    }
+    th {
+      background: #f1f5f9;
+      padding: 10px 14px;
+      text-align: left;
+      font-weight: 600;
+      border: 1px solid var(--border);
+    }
+    td {
+      padding: 10px 14px;
+      border: 1px solid var(--border);
+      vertical-align: top;
+    }
+    tr:hover td { background: #f8fafc; }
+
+    /* ── Timeline ── */
+    .timeline { position: relative; padding-left: 28px; }
+    .timeline::before {
+      content: '';
+      position: absolute;
+      left: 8px;
+      top: 6px;
+      bottom: 6px;
+      width: 2px;
+      background: linear-gradient(to bottom, var(--primary), var(--secondary));
+      border-radius: 2px;
+    }
+    .tl-item {
+      position: relative;
+      margin-bottom: 24px;
+    }
+    .tl-item::before {
+      content: '';
+      position: absolute;
+      left: -24px;
+      top: 6px;
+      width: 12px;
+      height: 12px;
+      background: var(--card);
+      border: 3px solid var(--primary);
+      border-radius: 50%;
+    }
+    .tl-item.done::before { background: var(--accent); border-color: var(--accent); }
+    .tl-label {
+      font-size: 11px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.6px;
+      color: var(--muted);
+      margin-bottom: 4px;
+    }
+    .tl-title { font-weight: 600; margin-bottom: 6px; }
+    .tl-desc { font-size: 14px; color: var(--muted); }
+
+    /* ── Callout ── */
+    .callout {
+      display: flex;
+      gap: 14px;
+      padding: 16px 18px;
+      border-radius: 10px;
+      margin: 16px 0;
+      font-size: 14px;
+    }
+    .callout.info { background: #eff6ff; border: 1px solid #bfdbfe; }
+    .callout.warn { background: #fffbeb; border: 1px solid #fde68a; }
+    .callout.success { background: #f0fdf4; border: 1px solid #bbf7d0; }
+    .callout .icon { font-size: 1.3rem; flex-shrink: 0; margin-top: 1px; }
+    .callout .body strong { display: block; margin-bottom: 4px; }
+
+    /* ── File tree ── */
+    .file-tree {
+      background: var(--code-bg);
+      color: #94a3b8;
+      border-radius: 10px;
+      padding: 20px 24px;
+      font-family: 'Cascadia Code', 'Consolas', monospace;
+      font-size: 13px;
+      line-height: 1.8;
+      margin: 16px 0;
+    }
+    .file-tree .new { color: #6ee7b7; font-weight: 600; }
+    .file-tree .changed { color: #fde68a; }
+    .file-tree .dir { color: #93c5fd; }
+
+    /* ── Pill ── */
+    .pill {
+      display: inline-block;
+      padding: 2px 10px;
+      border-radius: 20px;
+      font-size: 12px;
+      font-weight: 600;
+    }
+    .pill-blue { background: #dbeafe; color: #1d4ed8; }
+    .pill-green { background: #dcfce7; color: #15803d; }
+    .pill-purple { background: #ede9fe; color: #6d28d9; }
+    .pill-orange { background: #ffedd5; color: #c2410c; }
+
+    /* ── Footer ── */
+    footer {
+      background: var(--code-bg);
+      color: #94a3b8;
+      text-align: center;
+      padding: 32px 24px;
+      font-size: 13px;
+    }
+
+    @media (max-width: 640px) {
+      header h1 { font-size: 1.7rem; }
+      nav ul { overflow-x: auto; flex-wrap: nowrap; }
+      .card-grid { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+
+<!-- ══════════════════════════════════════════════
+     HEADER
+══════════════════════════════════════════════ -->
+<header>
+  <div class="inner">
+    <div class="badge">物件導向程式設計 — 期末專案報告</div>
+    <h1>AI 協作設計報告<br>OopsUMLEditor 物件導向重構</h1>
+    <p class="subtitle">
+      記錄如何透過與 Claude AI 的結構化對話，<br>
+      完成 Java Swing UML 編輯器的 OO 設計重構全流程
+    </p>
+    <div class="meta">
+      <span>👤 學生：林紘裔　學號：112504009</span>
+      <span>📅 日期：2026-06-10</span>
+      <span>🤖 AI 工具：Claude Code (Anthropic)</span>
+      <span>⚙️ 語言：Java 11 + Swing</span>
+    </div>
+  </div>
+</header>
+
+<!-- ══════════════════════════════════════════════
+     NAV
+══════════════════════════════════════════════ -->
+<nav>
+  <ul>
+    <li><a href="#overview">專案概覽</a></li>
+    <li><a href="#tools">AI 工具介紹</a></li>
+    <li><a href="#workflow">溝通流程</a></li>
+    <li><a href="#specify">需求規格</a></li>
+    <li><a href="#plan">架構設計</a></li>
+    <li><a href="#implement">實作流程</a></li>
+    <li><a href="#patterns">設計模式</a></li>
+    <li><a href="#challenges">挑戰與解法</a></li>
+    <li><a href="#result">成果驗收</a></li>
+    <li><a href="#reflection">心得反思</a></li>
+  </ul>
+</nav>
+
+<!-- ══════════════════════════════════════════════
+     MAIN
+══════════════════════════════════════════════ -->
+<main>
+
+<!-- ─────────────────────────────────────────────
+     §1 專案概覽
+───────────────────────────────────────────── -->
+<section id="overview">
+  <h2><span class="num">1</span>專案概覽</h2>
+
+  <div class="card">
+    <h3>背景與目標</h3>
+    <p>
+      本次期末作業要求在<strong>保留所有現有功能</strong>的前提下，將一個已實作的
+      Java Swing UML 編輯器（OopsUMLEditor）重構為符合物件導向設計原則的架構。
+      重構不新增任何功能，而是透過引入設計模式，讓程式碼結構更清晰、可讀性更高、
+      更符合 OCP（開放封閉原則）與 DIP（依賴反轉原則）。
+    </p>
+    <p>
+      <strong>核心挑戰</strong>在於：如何在不破壞既有行為的前提下，識別「壞味道」
+      (bad smells)，並以正確的設計模式系統性地消除它們。
+    </p>
+  </div>
+
+  <div class="card-grid">
+    <div class="card-sm">
+      <div class="icon">🎯</div>
+      <strong>MVC 分層</strong>
+      <p>抽出 UMLModel，Canvas 只負責繪製，業務邏輯完全歸 Model</p>
+    </div>
+    <div class="card-sm">
+      <div class="icon">🏭</div>
+      <strong>Factory Method</strong>
+      <p>ShapeFactory / LinkFactory 消除 CreateObjectMode 與 CreateLinkMode 的 if-else / switch</p>
+    </div>
+    <div class="card-sm">
+      <div class="icon">👁️</div>
+      <strong>Observer Pattern</strong>
+      <p>ModelObserver 介面，UMLModel 通知 Canvas 重繪，解除雙向耦合</p>
+    </div>
+    <div class="card-sm">
+      <div class="icon">📐</div>
+      <strong>六種模式標示</strong>
+      <p>Strategy、Composite、Template Method、Factory Method、Observer、MVC 全在程式碼與 Class Diagram 中明確標示</p>
+    </div>
+  </div>
+
+  <h3>重構前後架構對比</h3>
+  <table>
+    <tr>
+      <th>面向</th>
+      <th>重構前（壞味道）</th>
+      <th>重構後（設計模式）</th>
+    </tr>
+    <tr>
+      <td>物件建立</td>
+      <td><code>if (isRect) new RectObject(...)</code> else <code>new OvalObject(...)</code></td>
+      <td><code>ShapeFactory.create(x, y, w, h)</code>（Factory Method）</td>
+    </tr>
+    <tr>
+      <td>連線建立</td>
+      <td><code>switch(linkType) { case ASSOCIATION: ... }</code></td>
+      <td><code>LinkFactory.create(src, srcPort, dst, dstPort)</code>（Factory Method）</td>
+    </tr>
+    <tr>
+      <td>畫面更新</td>
+      <td>Canvas 持有所有資料，直接呼叫 <code>repaint()</code></td>
+      <td>UMLModel 呼叫 <code>notifyObservers()</code>，Canvas 實作 ModelObserver（Observer）</td>
+    </tr>
+    <tr>
+      <td>業務邏輯位置</td>
+      <td>散布在 Canvas 的大量方法中（<code>groupSelectedObjects</code>、<code>getObjectAt</code> 等）</td>
+      <td>集中於 UMLModel；Canvas 只剩繪製與事件轉發（MVC）</td>
+    </tr>
+    <tr>
+      <td>Canvas 依賴</td>
+      <td>持有 <code>List&lt;UMLObject&gt;</code>、<code>List&lt;ConnectionLine&gt;</code></td>
+      <td>只持有 <code>UMLModel model</code> 一個參照</td>
+    </tr>
+  </table>
+</section>
+
+<!-- ─────────────────────────────────────────────
+     §2 AI 工具介紹
+───────────────────────────────────────────── -->
+<section id="tools">
+  <h2><span class="num">2</span>AI 工具介紹</h2>
+
+  <div class="card">
+    <h3>Claude Code（CLI 工具）</h3>
+    <p>
+      本次專案使用 <strong>Claude Code</strong>（Anthropic 官方 CLI 工具）作為主要 AI 協作工具。
+      Claude Code 運行在終端機中，可以直接讀取、撰寫、修改專案中的所有原始碼檔案，
+      並執行 Shell 命令（如 <code>build.bat</code>）來驗證編譯結果。
+    </p>
+    <p>
+      與一般聊天式 AI 的差異在於：Claude Code 具備<strong>完整的程式碼 Context 感知能力</strong>，
+      可以跨檔案閱讀與修改，並且能直接執行編譯驗證，大幅降低「AI 給出無法編譯的程式碼」的風險。
+    </p>
+  </div>
+
+  <div class="card">
+    <h3>Speckit — 結構化 AI 開發工作流</h3>
+    <p>
+      <strong>Speckit</strong> 是整合在 Claude Code 中的一套斜線命令（Slash Command）工作流，
+      將軟體開發流程拆解為四個明確階段，每階段產出具體文件，使 AI 與開發者的協作更有條理。
+    </p>
+
+    <div class="card-grid" style="margin-top:16px">
+      <div class="card-sm">
+        <div class="icon">📝</div>
+        <strong>/speckit.specify</strong>
+        <p>將自然語言需求轉化為結構化功能規格（spec.md），包含 User Story、驗收條件、功能需求</p>
+      </div>
+      <div class="card-sm">
+        <div class="icon">🗺️</div>
+        <strong>/speckit.plan</strong>
+        <p>根據規格產出實作計畫（plan.md），包含技術選型、架構設計、檔案結構、介面契約</p>
+      </div>
+      <div class="card-sm">
+        <div class="icon">✅</div>
+        <strong>/speckit.tasks</strong>
+        <p>將計畫拆解為可執行的細顆粒度任務清單（tasks.md），標示依賴關係與可平行執行的任務</p>
+      </div>
+      <div class="card-sm">
+        <div class="icon">⚡</div>
+        <strong>/speckit.implement</strong>
+        <p>逐一執行 tasks.md 中的任務，自動讀取現有程式碼、撰寫新檔案、修改現有檔案、驗證編譯</p>
+      </div>
+    </div>
+
+    <div class="callout info" style="margin-top:16px">
+      <span class="icon">💡</span>
+      <div class="body">
+        <strong>為什麼使用 Speckit？</strong>
+        直接讓 AI「一次生成所有程式碼」容易產生不一致性與架構混亂。
+        Speckit 強制 AI 先思考「要做什麼（spec）」→「怎麼做（plan）」→「分哪些步驟（tasks）」，
+        再才開始「動手做（implement）」，與人類工程師的設計流程高度吻合。
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ─────────────────────────────────────────────
+     §3 與 AI 的溝通流程
+───────────────────────────────────────────── -->
+<section id="workflow">
+  <h2><span class="num">3</span>與 AI 的溝通流程</h2>
+
+  <div class="card">
+    <h3>整體溝通策略</h3>
+    <p>
+      與 AI 的溝通並非一次性的「給需求 → 收程式碼」，而是採用<strong>漸進式、有確認點的對話流程</strong>。
+      核心原則是：先讓 AI 理解問題的本質與約束，再讓它提出設計方案，人類確認後才進入實作。
+    </p>
+  </div>
+
+  <div class="timeline">
+    <div class="tl-item done">
+      <div class="tl-label">Phase 0 — 背景建立</div>
+      <div class="tl-title">提供課程背景與評分標準</div>
+      <div class="tl-desc">
+        告知 AI 這是 OOAD 期末作業，說明評分標準（功能完整度、OO 設計品質、
+        程式碼可讀性、程式碼與設計圖對應、對專案的熟悉度），
+        讓 AI 了解設計決策的優先順序。
+      </div>
+    </div>
+
+    <div class="tl-item done">
+      <div class="tl-label">Phase 1 — 確認工具</div>
+      <div class="tl-title">詢問是否可以用 Speckit 的斜線命令</div>
+      <div class="tl-desc">
+        確認 Claude Code CLI 環境中已有 <code>/speckit.*</code> 命令可用，
+        詢問應該給哪個 prompt 作為 <code>/speckit.specify</code> 的輸入。
+      </div>
+    </div>
+
+    <div class="tl-item done">
+      <div class="tl-label">Phase 2 — 需求規格化</div>
+      <div class="tl-title">/speckit.specify — 自然語言 → 結構化規格</div>
+      <div class="tl-desc">
+        提供包含六大設計目標的完整描述 prompt，Speckit 自動生成含
+        5 個 User Story、功能需求、成功標準的 spec.md。
+      </div>
+    </div>
+
+    <div class="tl-item done">
+      <div class="tl-label">Phase 3 — 架構設計</div>
+      <div class="tl-title">/speckit.plan — 規格 → 技術架構</div>
+      <div class="tl-desc">
+        無需額外 prompt（<code>/speckit.plan</code> 直接讀取 spec.md），
+        AI 自動研究並輸出包含完整檔案結構、介面契約、技術決策的 plan.md。
+      </div>
+    </div>
+
+    <div class="tl-item done">
+      <div class="tl-label">Phase 4 — 任務拆解</div>
+      <div class="tl-title">/speckit.tasks — 架構 → 可執行任務清單</div>
+      <div class="tl-desc">
+        同樣無需額外 prompt，AI 讀取 plan.md 輸出 18 個任務（T001–T018），
+        標示依賴關係、可平行執行的任務（[P] 標記），以及每個任務的精確檔案路徑。
+      </div>
+    </div>
+
+    <div class="tl-item done">
+      <div class="tl-label">Phase 5 — 逐步實作</div>
+      <div class="tl-title">/speckit.implement — 任務清單 → 實際程式碼</div>
+      <div class="tl-desc">
+        AI 依序讀取現有程式碼、撰寫/修改檔案、執行 build.bat 驗證，
+        並即時修復因架構變動（如 Canvas 建構子變更）產生的依賴問題。
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ─────────────────────────────────────────────
+     §4 需求規格化：/speckit.specify
+───────────────────────────────────────────── -->
+<section id="specify">
+  <h2><span class="num">4</span>需求規格化：/speckit.specify</h2>
+
+  <h3>輸入給 AI 的 Prompt</h3>
+  <p>提供給 <code>/speckit.specify</code> 的輸入文字，需要同時涵蓋「功能目標」與「設計目標」：</p>
+
+  <div class="prompt-block">
+    <div class="label">👤 使用者輸入 — speckit.specify prompt</div>
+    <p>
+      OopsUMLEditor 期末重構：在保留所有現有功能的前提下，將現有的 Java Swing UML Editor
+      重構為清晰的物件導向設計。
+    </p>
+    <p>主要目標：</p>
+    <ol style="margin-left:20px; margin-top:8px; line-height:2">
+      <li>抽出 UMLModel 實現 MVC 分層，讓 Canvas 只負責繪製</li>
+      <li>新增 ShapeFactory/LinkFactory 實現 Factory Pattern，消除 CreateObjectMode 和 CreateLinkMode 中的 if-else/switch</li>
+      <li>新增 ModelObserver 介面實現 Observer Pattern，讓 UMLModel 通知 Canvas 重繪</li>
+      <li>在程式碼和 Class Diagram 中明確標示 Strategy、Composite、Template Method、Factory Method、Observer、MVC 六種設計模式</li>
+    </ol>
+    <p style="margin-top:8px">
+      功能維持不變：建立 Rect/Oval 物件、建立三種連線（Association/Generalization/Composition）、
+      Select/Move/Resize、Group/Ungroup、Label 自訂。
+    </p>
+  </div>
+
+  <h3>AI 產生的 User Stories（spec.md 節錄）</h3>
+  <p>Speckit 將上述 prompt 拆解為五個 User Story，每個都有明確的驗收條件：</p>
+
+  <table>
+    <tr>
+      <th>Story</th>
+      <th>目標</th>
+      <th>優先序</th>
+      <th>核心驗收條件</th>
+    </tr>
+    <tr>
+      <td><strong>US1</strong></td>
+      <td>功能完整保留</td>
+      <td><span class="pill pill-orange">P1</span></td>
+      <td>重構後所有原有操作（建立/連線/選取/移動/Resize/Group/Label）均正常</td>
+    </tr>
+    <tr>
+      <td><strong>US2</strong></td>
+      <td>MVC 分層</td>
+      <td><span class="pill pill-orange">P1</span></td>
+      <td>Canvas 無 List&lt;UMLObject&gt; 欄位與業務方法；UMLModel 無 javax.swing import</td>
+    </tr>
+    <tr>
+      <td><strong>US3</strong></td>
+      <td>Factory Pattern</td>
+      <td><span class="pill pill-blue">P2</span></td>
+      <td>CreateObjectMode 無直接 new 具體類別；CreateLinkMode 無 switch</td>
+    </tr>
+    <tr>
+      <td><strong>US4</strong></td>
+      <td>Observer Pattern</td>
+      <td><span class="pill pill-blue">P2</span></td>
+      <td>UMLModel 無 repaint() 呼叫；mutating 方法均呼叫 notifyObservers()</td>
+    </tr>
+    <tr>
+      <td><strong>US5</strong></td>
+      <td>設計模式標示</td>
+      <td><span class="pill pill-purple">P3</span></td>
+      <td>六種模式在程式碼與 Class Diagram 中均可辨識且一一對應</td>
+    </tr>
+  </table>
+
+  <div class="callout success">
+    <span class="icon">✅</span>
+    <div class="body">
+      <strong>Speckit 的品質機制</strong>
+      Speckit 完成 spec.md 後，會自動生成
+      <code>checklists/requirements.md</code> 並執行品質驗證，確認所有需求「可測試且無歧義」後才允許進入下一階段。
+      這強迫 AI 以「測試者視角」審視需求，避免模糊規格流入實作。
+    </div>
+  </div>
+</section>
+
+<!-- ─────────────────────────────────────────────
+     §5 架構設計：/speckit.plan
+───────────────────────────────────────────── -->
+<section id="plan">
+  <h2><span class="num">5</span>架構設計：/speckit.plan</h2>
+
+  <h3>AI 的設計決策過程</h3>
+  <p>
+    <code>/speckit.plan</code> 的核心工作是：在讀取 spec.md 後，先研究技術問題（research.md），
+    再輸出完整的系統架構（plan.md + contracts/）。
+    以下是 AI 在 plan 階段做出的關鍵設計決策：
+  </p>
+
+  <div class="card">
+    <h4>決策 1：UMLModel 是否需要 refresh() 方法？</h4>
+    <p>
+      <strong>問題</strong>：在 SelectMode 的拖曳操作（MOVE、RESIZE）中，物件的位置與大小是透過
+      <code>obj.move(dx, dy)</code> 與 <code>obj.setBounds(...)</code> 直接修改，
+      這些呼叫不經過 UMLModel 的 mutating 方法，因此不會觸發 <code>notifyObservers()</code>。
+    </p>
+    <p>
+      <strong>解法</strong>：在 <code>UMLModel</code> 中新增 <code>public void refresh()</code> 方法，
+      它僅呼叫 <code>notifyObservers()</code> 而不修改任何狀態。
+      SelectMode 在拖曳期間呼叫 <code>model.refresh()</code> 觸發重繪，
+      避免在 Mode 層中直接呼叫 <code>canvas.repaint()</code>（會破壞 MVC 分層）。
+    </p>
+    <pre><code><span class="cm">// UMLModel.java — 拖曳操作的重繪觸發點</span>
+<span class="kw">public void</span> <span class="fn">refresh</span>() {
+    <span class="fn">notifyObservers</span>(); <span class="cm">// 不修改狀態，只觸發 View 重繪</span>
+}</code></pre>
+  </div>
+
+  <div class="card">
+    <h4>決策 2：ShapeFactory 要不要包含 drawPreview()？</h4>
+    <p>
+      <strong>問題</strong>：<code>CreateObjectMode.draw()</code> 在拖曳時需要繪製預覽外框
+      （Rect 畫矩形、Oval 畫橢圓）。若保留 <code>instanceof</code> 判斷，
+      違反 OCP 原則，也讓 Mode 層反向依賴具體類型。
+    </p>
+    <p>
+      <strong>解法</strong>：在 <code>ShapeFactory</code> 介面中新增
+      <code>void drawPreview(Graphics2D g, int x, int y, int w, int h)</code>，
+      由各具體 Factory 實作對應的預覽繪製邏輯。
+    </p>
+    <pre><code><span class="cm">// ShapeFactory.java — 介面同時負責建立與預覽</span>
+<span class="kw">public interface</span> <span class="cl">ShapeFactory</span> {
+    <span class="cl">UMLObject</span> <span class="fn">create</span>(<span class="kw">int</span> x, <span class="kw">int</span> y, <span class="kw">int</span> w, <span class="kw">int</span> h);
+    <span class="kw">void</span> <span class="fn">drawPreview</span>(<span class="cl">Graphics2D</span> g, <span class="kw">int</span> x, <span class="kw">int</span> y, <span class="kw">int</span> w, <span class="kw">int</span> h);
+}</code></pre>
+  </div>
+
+  <div class="card">
+    <h4>決策 3：Canvas import Mode 的方式</h4>
+    <p>
+      <strong>問題</strong>：Canvas 持有 <code>Mode currentMode</code> 欄位，
+      但 Mode 介面在 <code>oops.mode</code> package，
+      而 Canvas 在 <code>oops</code> package——容易遺漏 import。
+    </p>
+    <p>
+      <strong>解法</strong>：明確加入 <code>import oops.mode.Mode;</code>（非 wildcard），
+      避免因為 <code>import oops.model.*</code> 的 wildcard 範圍不包含 mode package
+      而產生的 <em>cannot find symbol</em> 編譯錯誤。
+    </p>
+    <div class="callout warn">
+      <span class="icon">⚠️</span>
+      <div class="body">
+        這個問題在實際編譯時才被發現（AI 初稿遺漏了此 import），
+        是一個很好的例子：<strong>「先讓 AI 產出草稿，再用編譯驗證」</strong>的重要性，
+        勝過「相信 AI 輸出永遠正確」。
+      </div>
+    </div>
+  </div>
+
+  <h3>最終確定的檔案結構</h3>
+  <div class="file-tree">
+    src/oops/<br>
+    ├── <span class="changed">UMLEditor.java</span>         <span style="color:#6b7280">← 修改：先建立 UMLModel 再傳給 Canvas</span><br>
+    ├── <span class="changed">Canvas.java</span>             <span style="color:#6b7280">← 大幅改寫：implements ModelObserver，只保留繪製</span><br>
+    └── <span class="changed">ToolPanel.java</span>          <span style="color:#6b7280">← 修改：注入具體 Factory 實例</span><br>
+    <br>
+    src/oops/model/<br>
+    ├── <span class="new">★ UMLModel.java</span>            <span style="color:#6b7280">← 新增：所有業務邏輯 + Observer Subject</span><br>
+    ├── <span class="new">★ ModelObserver.java</span>       <span style="color:#6b7280">← 新增：Observer Pattern 介面</span><br>
+    ├── UMLObject.java          <span style="color:#6b7280">← 僅加模式標示</span><br>
+    ├── CompositeObject.java    <span style="color:#6b7280">← 僅加模式標示</span><br>
+    ├── ConnectionLine.java     <span style="color:#6b7280">← 僅加模式標示</span><br>
+    └── ... (其餘 model 類別不變)<br>
+    <br>
+    <span class="new">src/oops/factory/</span>              <span style="color:#6b7280">← 全新 package</span><br>
+    ├── <span class="new">★ ShapeFactory.java</span>         <span style="color:#6b7280">← Factory Method 介面（含 drawPreview）</span><br>
+    ├── <span class="new">★ RectShapeFactory.java</span>     <span style="color:#6b7280">← 具體工廠</span><br>
+    ├── <span class="new">★ OvalShapeFactory.java</span>     <span style="color:#6b7280">← 具體工廠</span><br>
+    ├── <span class="new">★ LinkFactory.java</span>          <span style="color:#6b7280">← Factory Method 介面</span><br>
+    ├── <span class="new">★ AssociationLinkFactory.java</span><br>
+    ├── <span class="new">★ GeneralizationLinkFactory.java</span><br>
+    └── <span class="new">★ CompositionLinkFactory.java</span><br>
+    <br>
+    src/oops/mode/<br>
+    ├── Mode.java               <span style="color:#6b7280">← 加 Strategy Pattern 標示</span><br>
+    ├── SelectMode.java         <span style="color:#6b7280">← 所有 canvas.* 改為 canvas.getModel().*</span><br>
+    ├── <span class="changed">CreateObjectMode.java</span>   <span style="color:#6b7280">← isRect:boolean 改為 factory:ShapeFactory</span><br>
+    └── <span class="changed">CreateLinkMode.java</span>     <span style="color:#6b7280">← LinkType enum + switch 完全移除，改為 LinkFactory</span>
+  </div>
+</section>
+
+<!-- ─────────────────────────────────────────────
+     §6 具體實作流程：/speckit.implement
+───────────────────────────────────────────── -->
+<section id="implement">
+  <h2><span class="num">6</span>具體實作流程：/speckit.implement</h2>
+
+  <h3>任務清單（tasks.md）</h3>
+  <p>
+    <code>/speckit.tasks</code> 將計畫拆解為 <strong>18 個具體任務</strong>，
+    分成 6 個 Phase，每個任務都有明確的「要改哪個檔案、改什麼」：
+  </p>
+
+  <table>
+    <tr>
+      <th>Phase</th>
+      <th>任務</th>
+      <th>說明</th>
+    </tr>
+    <tr>
+      <td rowspan="1"><strong>Phase 1</strong><br>基準確認</td>
+      <td>T001</td>
+      <td>執行 build.bat + run.bat，確認 baseline 可編譯執行</td>
+    </tr>
+    <tr>
+      <td rowspan="2"><strong>Phase 2</strong><br>新介面骨架</td>
+      <td>T002 [P]</td>
+      <td>建立 ModelObserver.java（Observer Pattern 介面）</td>
+    </tr>
+    <tr>
+      <td>T003 [P]</td>
+      <td>建立 UMLModel.java（MVC Model，含所有業務邏輯）</td>
+    </tr>
+    <tr>
+      <td rowspan="6"><strong>Phase 3</strong><br>MVC + Observer</td>
+      <td>T004</td>
+      <td>Canvas 新增 UMLModel 欄位、implements ModelObserver</td>
+    </tr>
+    <tr>
+      <td>T005</td>
+      <td>Canvas 移除所有舊業務邏輯方法與資料欄位</td>
+    </tr>
+    <tr>
+      <td>T006 [P]</td>
+      <td>SelectMode：所有 canvas.* 呼叫改為 canvas.getModel().*</td>
+    </tr>
+    <tr>
+      <td>T007 [P]</td>
+      <td>CreateLinkMode：更新為 canvas.getModel().* API</td>
+    </tr>
+    <tr>
+      <td>T008</td>
+      <td>UMLEditor：showLabelDialog 改用 canvas.getModel().getSelectedObjects()</td>
+    </tr>
+    <tr>
+      <td>T009</td>
+      <td>ToolPanel：canvas.addObject 改為 canvas.getModel().addObject</td>
+    </tr>
+    <tr>
+      <td rowspan="5"><strong>Phase 4</strong><br>Factory Pattern</td>
+      <td>T010 [P]</td>
+      <td>建立 ShapeFactory + RectShapeFactory + OvalShapeFactory</td>
+    </tr>
+    <tr>
+      <td>T011 [P]</td>
+      <td>建立 LinkFactory + 3 個具體 LinkFactory 實作</td>
+    </tr>
+    <tr>
+      <td>T012</td>
+      <td>CreateObjectMode：isRect:boolean → factory:ShapeFactory</td>
+    </tr>
+    <tr>
+      <td>T013</td>
+      <td>CreateLinkMode：移除 LinkType enum + switch，改用 LinkFactory</td>
+    </tr>
+    <tr>
+      <td>T014</td>
+      <td>ToolPanel：注入 RectShapeFactory、OvalShapeFactory、3 個 LinkFactory</td>
+    </tr>
+    <tr>
+      <td rowspan="2"><strong>Phase 5</strong><br>模式標示 + 圖</td>
+      <td>T015 [P]</td>
+      <td>所有核心類別加上 // Pattern Name 標示</td>
+    </tr>
+    <tr>
+      <td>T016</td>
+      <td>更新 class_diagram.puml 反映完整重構後架構</td>
+    </tr>
+    <tr>
+      <td rowspan="2"><strong>Phase 6</strong><br>驗收</td>
+      <td>T017</td>
+      <td>build.bat 零錯誤 + 所有功能操作驗收</td>
+    </tr>
+    <tr>
+      <td>T018 [P]</td>
+      <td>程式碼可讀性最終確認、廢棄 import 清理</td>
+    </tr>
+  </table>
+
+  <h3>關鍵實作步驟詳解</h3>
+
+  <div class="steps">
+    <div class="step">
+      <div class="step-body">
+        <strong>建立 UMLModel：將 Canvas 的業務邏輯全部遷移</strong>
+        <p>
+          Canvas 原本持有 <code>List&lt;UMLObject&gt; objects</code>、
+          <code>List&lt;ConnectionLine&gt; lines</code>、<code>UMLObject hoveredObject</code>，
+          以及超過 10 個業務方法。AI 在讀取 Canvas.java 全文後，
+          完整識別哪些方法屬於「業務邏輯」（應移至 UMLModel），
+          哪些屬於「View 責任」（應留在 Canvas）。
+        </p>
+        <pre><code><span class="cm">// UMLModel.java — 業務邏輯集中管理（節錄）</span>
+<span class="kw">public class</span> <span class="cl">UMLModel</span> {
+    <span class="kw">private final</span> <span class="cl">List</span>&lt;<span class="cl">UMLObject</span>&gt; objects = <span class="kw">new</span> <span class="cl">ArrayList</span>&lt;&gt;();
+    <span class="kw">private final</span> <span class="cl">List</span>&lt;<span class="cl">ConnectionLine</span>&gt; lines = <span class="kw">new</span> <span class="cl">ArrayList</span>&lt;&gt;();
+    <span class="kw">private final</span> <span class="cl">List</span>&lt;<span class="cl">ModelObserver</span>&gt; observers = <span class="kw">new</span> <span class="cl">ArrayList</span>&lt;&gt;();
+
+    <span class="kw">public void</span> <span class="fn">addObject</span>(<span class="cl">UMLObject</span> obj) {
+        objects.<span class="fn">add</span>(obj);
+        <span class="fn">notifyObservers</span>(); <span class="cm">// 每個 mutating 方法都通知 Observer</span>
+    }
+
+    <span class="kw">private void</span> <span class="fn">notifyObservers</span>() {
+        <span class="kw">for</span> (<span class="cl">ModelObserver</span> o : observers) o.<span class="fn">onModelChanged</span>();
+    }
+}</code></pre>
+      </div>
+    </div>
+
+    <div class="step">
+      <div class="step-body">
+        <strong>重寫 Canvas 為純 View</strong>
+        <p>
+          Canvas 新增 <code>private final UMLModel model</code> 欄位，
+          建構子改為 <code>Canvas(UMLModel model)</code>，
+          並在建構子中呼叫 <code>model.addObserver(this)</code> 完成 Observer 訂閱。
+          <code>paintComponent</code> 直接讀取 <code>model.getObjects()</code> 與 <code>model.getLines()</code> 繪製。
+        </p>
+        <pre><code><span class="cm">// MVC - View / Observer Pattern</span>
+<span class="kw">public class</span> <span class="cl">Canvas</span> <span class="kw">extends</span> <span class="cl">JPanel</span>
+    <span class="kw">implements</span> <span class="cl">MouseListener</span>, <span class="cl">MouseMotionListener</span>, <span class="cl">ModelObserver</span> {
+
+    <span class="kw">private final</span> <span class="cl">UMLModel</span> model;
+
+    <span class="kw">public</span> <span class="fn">Canvas</span>(<span class="cl">UMLModel</span> model) {
+        <span class="kw">this</span>.model = model;
+        model.<span class="fn">addObserver</span>(<span class="kw">this</span>); <span class="cm">// Observer Pattern：Canvas 訂閱 UMLModel</span>
+    }
+
+    <span class="kw">public void</span> <span class="fn">onModelChanged</span>() { <span class="fn">repaint</span>(); } <span class="cm">// Observer 收到通知後重繪</span>
+    <span class="kw">public</span> <span class="cl">UMLModel</span> <span class="fn">getModel</span>()   { <span class="kw">return</span> model; }
+}</code></pre>
+      </div>
+    </div>
+
+    <div class="step">
+      <div class="step-body">
+        <strong>Factory Pattern：替換 CreateObjectMode 的 isRect 判斷</strong>
+        <p>
+          原本 <code>CreateObjectMode</code> 持有 <code>boolean isRect</code>，
+          在 <code>mouseReleased</code> 中有 <code>isRect ? new RectObject(...) : new OvalObject(...)</code>。
+          重構後改為注入 <code>ShapeFactory factory</code>，建立物件時只呼叫 <code>factory.create(x, y, w, h)</code>。
+        </p>
+        <pre><code><span class="cm">// 重構前（壞味道）</span>
+<span class="cl">UMLObject</span> obj = isRect
+    ? <span class="kw">new</span> <span class="cl">RectObject</span>(x, y, w, h)
+    : <span class="kw">new</span> <span class="cl">OvalObject</span>(x, y, w, h);
+
+<span class="cm">// 重構後（Factory Method Pattern）</span>
+<span class="cl">UMLObject</span> obj = factory.<span class="fn">create</span>(x, y, w, h); <span class="cm">// 不知道也不需要知道具體類型</span></code></pre>
+      </div>
+    </div>
+
+    <div class="step">
+      <div class="step-body">
+        <strong>Factory Pattern：替換 CreateLinkMode 的 switch</strong>
+        <p>
+          原本 <code>CreateLinkMode</code> 有一個 <code>LinkType</code> enum 和一個 <code>createLine()</code> 方法，
+          裡面是三分支的 switch。重構後整個 enum 和 switch 被刪除，
+          改由注入的 <code>LinkFactory factory</code> 負責建立連線。
+        </p>
+        <pre><code><span class="cm">// 重構前（switch 壞味道）</span>
+<span class="kw">switch</span> (linkType) {
+    <span class="kw">case</span> ASSOCIATION:    <span class="kw">return new</span> <span class="cl">AssociationLine</span>(src, srcPort, dst, dstPort);
+    <span class="kw">case</span> GENERALIZATION: <span class="kw">return new</span> <span class="cl">GeneralizationLine</span>(src, srcPort, dst, dstPort);
+    <span class="kw">case</span> COMPOSITION:    <span class="kw">return new</span> <span class="cl">CompositionLine</span>(src, srcPort, dst, dstPort);
+}
+
+<span class="cm">// 重構後（Factory Method Pattern）</span>
+<span class="cl">ConnectionLine</span> line = factory.<span class="fn">create</span>(sourceObject, sourcePort, destPort.<span class="fn">getOwner</span>(), destPort);
+canvas.<span class="fn">getModel</span>().<span class="fn">addConnectionLine</span>(line);</code></pre>
+      </div>
+    </div>
+
+    <div class="step">
+      <div class="step-body">
+        <strong>ToolPanel：依賴注入 (DI) 具體 Factory</strong>
+        <p>
+          ToolPanel 是整個依賴注入的「組裝點（Composition Root）」——
+          在這裡決定每個按鈕要綁定哪個具體 Factory，
+          然後透過建構子注入傳遞給 Mode。
+        </p>
+        <pre><code><span class="cm">// ToolPanel.java — 依賴注入的組裝點</span>
+JButton assocBtn = <span class="fn">createModeButton</span>(<span class="st">"Association"</span>, <span class="st">"association"</span>,
+    () -> <span class="kw">new</span> <span class="cl">CreateLinkMode</span>(<span class="kw">new</span> <span class="cl">AssociationLinkFactory</span>()));
+
+JButton rectBtn = <span class="fn">createObjectButton</span>(<span class="st">"Rect"</span>, <span class="st">"rect"</span>,
+    <span class="kw">new</span> <span class="cl">RectShapeFactory</span>());  <span class="cm">// 注入具體 Factory</span></code></pre>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ─────────────────────────────────────────────
+     §7 六種設計模式說明
+───────────────────────────────────────────── -->
+<section id="patterns">
+  <h2><span class="num">7</span>六種設計模式在本專案中的應用</h2>
+
+  <div class="card">
+    <h3>
+      <span class="pattern-badge p-mvc">MVC</span>
+      Model-View-Controller 架構
+    </h3>
+    <p><strong>問題</strong>：Canvas 原本同時負責顯示資料、管理資料、處理業務邏輯，職責混雜。</p>
+    <p><strong>解法</strong>：</p>
+    <ul style="margin-left:20px; line-height:2">
+      <li><strong>Model</strong>（<code>UMLModel</code>）：持有所有資料，提供業務邏輯 API</li>
+      <li><strong>View</strong>（<code>Canvas</code>）：只讀取 Model 資料繪圖，實作 ModelObserver</li>
+      <li><strong>Controller</strong>（<code>UMLEditor</code> + <code>ToolPanel</code>）：處理使用者輸入，協調 Model 和 View</li>
+    </ul>
+    <p><strong>好處</strong>：UMLModel 可以獨立進行單元測試；UI 可以替換而不影響 Model。</p>
+  </div>
+
+  <div class="card">
+    <h3>
+      <span class="pattern-badge p-observer">Observer</span>
+      Observer Pattern
+    </h3>
+    <p><strong>問題</strong>：UMLModel 需要讓 Canvas 知道狀態改變，但不能直接持有 Canvas 參照（會破壞 MVC 分層）。</p>
+    <p><strong>解法</strong>：</p>
+    <pre><code><span class="cm">// Subject（UMLModel）持有觀察者清單</span>
+<span class="kw">private final</span> <span class="cl">List</span>&lt;<span class="cl">ModelObserver</span>&gt; observers = <span class="kw">new</span> <span class="cl">ArrayList</span>&lt;&gt;();
+<span class="kw">public void</span> <span class="fn">addObserver</span>(<span class="cl">ModelObserver</span> o) { observers.<span class="fn">add</span>(o); }
+<span class="kw">private void</span> <span class="fn">notifyObservers</span>() { <span class="kw">for</span> (<span class="cl">ModelObserver</span> o : observers) o.<span class="fn">onModelChanged</span>(); }
+
+<span class="cm">// Observer（Canvas）實作介面</span>
+<span class="kw">public class</span> <span class="cl">Canvas</span> <span class="kw">implements</span> <span class="cl">ModelObserver</span> {
+    <span class="kw">public void</span> <span class="fn">onModelChanged</span>() { <span class="fn">repaint</span>(); }
+}</code></pre>
+    <p><strong>好處</strong>：UMLModel 不需要知道 Canvas 的存在，僅依賴 ModelObserver 介面。</p>
+  </div>
+
+  <div class="card">
+    <h3>
+      <span class="pattern-badge p-strategy">Strategy</span>
+      Strategy Pattern（既有，強化標示）
+    </h3>
+    <p><strong>應用位置</strong>：<code>Mode</code> 介面 + <code>SelectMode</code>、<code>CreateObjectMode</code>、<code>CreateLinkMode</code></p>
+    <p>
+      Canvas 持有一個 <code>Mode currentMode</code> 參照，所有滑鼠事件都委派給 currentMode 處理。
+      切換工具按鈕時，只需替換 currentMode 的實例，不需要修改 Canvas 的任何程式碼。
+    </p>
+    <pre><code><span class="cm">// Canvas 不知道 Mode 的具體類型，只透過介面呼叫</span>
+<span class="kw">public void</span> <span class="fn">mousePressed</span>(<span class="cl">MouseEvent</span> e) {
+    <span class="kw">if</span> (currentMode != <span class="kw">null</span>) currentMode.<span class="fn">mousePressed</span>(e, <span class="kw">this</span>);
+}</code></pre>
+  </div>
+
+  <div class="card">
+    <h3>
+      <span class="pattern-badge p-factory">Factory Method</span>
+      Factory Method Pattern（新增）
+    </h3>
+    <p><strong>應用位置</strong>：<code>oops.factory</code> package — ShapeFactory + LinkFactory + 5 個具體工廠</p>
+    <p>
+      每個按鈕（Rect、Oval、Association、Generalization、Composition）在建立時，
+      ToolPanel 注入對應的具體 Factory。Mode 只透過 Factory 介面建立物件，
+      完全不知道具體類型，滿足 OCP（不需修改現有 Mode 類別就能新增形狀類型）。
+    </p>
+    <pre><code><span class="cm">// 介面定義——Factory Method Pattern</span>
+<span class="kw">public interface</span> <span class="cl">ShapeFactory</span> {
+    <span class="cl">UMLObject</span> <span class="fn">create</span>(<span class="kw">int</span> x, <span class="kw">int</span> y, <span class="kw">int</span> w, <span class="kw">int</span> h);
+    <span class="kw">void</span> <span class="fn">drawPreview</span>(<span class="cl">Graphics2D</span> g, <span class="kw">int</span> x, <span class="kw">int</span> y, <span class="kw">int</span> w, <span class="kw">int</span> h);
+}
+
+<span class="cm">// 具體工廠——Factory Method Pattern (Concrete Factory)</span>
+<span class="kw">public class</span> <span class="cl">RectShapeFactory</span> <span class="kw">implements</span> <span class="cl">ShapeFactory</span> {
+    <span class="kw">public</span> <span class="cl">UMLObject</span> <span class="fn">create</span>(<span class="kw">int</span> x, <span class="kw">int</span> y, <span class="kw">int</span> w, <span class="kw">int</span> h) {
+        <span class="kw">return new</span> <span class="cl">RectObject</span>(x, y, w, h);
+    }
+    <span class="kw">public void</span> <span class="fn">drawPreview</span>(<span class="cl">Graphics2D</span> g, <span class="kw">int</span> x, <span class="kw">int</span> y, <span class="kw">int</span> w, <span class="kw">int</span> h) {
+        g.<span class="fn">drawRect</span>(x, y, w, h);
+    }
+}</code></pre>
+  </div>
+
+  <div class="card">
+    <h3>
+      <span class="pattern-badge p-composite">Composite</span>
+      Composite Pattern（既有，標示強化）
+    </h3>
+    <p><strong>應用位置</strong>：<code>UMLObject</code>（Component）、<code>RectObject</code>/<code>OvalObject</code>（Leaf）、<code>CompositeObject</code>（Composite）</p>
+    <p>
+      Group 操作將多個物件包裝成一個 <code>CompositeObject</code>，
+      Move 時遞迴移動所有子物件，從外部看起來與單一物件完全相同。
+      <code>CompositeObject</code> 可以再包含其他 <code>CompositeObject</code>（巢狀群組）。
+    </p>
+  </div>
+
+  <div class="card">
+    <h3>
+      <span class="pattern-badge p-template">Template Method</span>
+      Template Method Pattern（既有，標示強化）
+    </h3>
+    <p><strong>應用位置（兩處）</strong>：</p>
+    <ul style="margin-left:20px; line-height:2">
+      <li>
+        <code>ConnectionLine.draw()</code> = Template Method（骨架：畫線 → 呼叫 drawArrowHead）；
+        <code>drawArrowHead()</code> = abstract hook（由 AssociationLine、GeneralizationLine、CompositionLine 各自實作）
+      </li>
+      <li>
+        <code>UMLObject</code> 的 <code>draw()</code>、<code>contains()</code>、<code>initPorts()</code> 均為 abstract hooks，
+        由 RectObject 和 OvalObject 各自實作
+      </li>
+    </ul>
+  </div>
+</section>
+
+<!-- ─────────────────────────────────────────────
+     §8 挑戰與解法
+───────────────────────────────────────────── -->
+<section id="challenges">
+  <h2><span class="num">8</span>遇到的挑戰與解決方式</h2>
+
+  <div class="card">
+    <h3>挑戰 1：拖曳操作的重繪問題（AI 初稿 Bug）</h3>
+    <p>
+      <strong>問題描述</strong>：SelectMode 的 MOVE 和 RESIZE 動作中，
+      物件是透過 <code>obj.move(dx, dy)</code> 和 <code>setBounds()</code> 直接修改屬性，
+      不經過 UMLModel 的任何 mutating 方法，因此不會觸發 <code>notifyObservers()</code>，
+      畫面不會更新。
+    </p>
+    <p>
+      <strong>AI 初稿的錯誤</strong>：AI 第一次的 SelectMode 草稿呼叫了
+      <code>model.notifyObserversDirectly()</code>，但這個方法根本不存在。
+    </p>
+    <p>
+      <strong>解決方式</strong>：在與 AI 的對話中說明問題，AI 提出在 UMLModel 新增
+      <code>public void refresh()</code> 方法（僅呼叫 <code>notifyObservers()</code> 不修改狀態），
+      並同步更新 SelectMode 使用 <code>model.refresh()</code>。
+    </p>
+
+    <div class="prompt-block">
+      <div class="label">💬 對話紀錄（問題發現）</div>
+      <p>
+        編譯後執行，發現拖曳時畫面不更新。追查後發現 SelectMode 呼叫了不存在的
+        <code>model.notifyObserversDirectly()</code>。討論後決定新增
+        <code>UMLModel.refresh()</code> 作為「手動觸發重繪」的公開 API，
+        而非讓 Mode 直接呼叫 <code>canvas.repaint()</code>（後者會破壞 MVC 分層）。
+      </p>
+    </div>
+  </div>
+
+  <div class="card">
+    <h3>挑戰 2：Canvas 遺漏 Mode import</h3>
+    <p>
+      <strong>問題描述</strong>：Canvas.java 改寫後，<code>import oops.model.*</code> 的 wildcard
+      只涵蓋 <code>oops.model</code> package，而 <code>Mode</code> 介面在 <code>oops.mode</code>，
+      導致 <code>private Mode currentMode</code> 欄位的 <code>Mode</code> 無法解析。
+    </p>
+    <p>
+      <strong>解決方式</strong>：執行 <code>build.bat</code> 後，看到
+      <em>error: cannot find symbol — class Mode</em>，
+      立即在 Canvas.java 加入 <code>import oops.mode.Mode;</code>。
+    </p>
+    <div class="callout warn">
+      <span class="icon">⚠️</span>
+      <div class="body">
+        <strong>教訓</strong>：AI 產出的程式碼即使邏輯正確，也可能有細節疏漏（如 import）。
+        <strong>「讓 AI 產出初稿 → 立即執行編譯驗證 → 修復問題」</strong>的循環
+        比「讓 AI 產出完美程式碼」更可靠、更高效。
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <h3>挑戰 3：javac 在 WSL 環境中找不到</h3>
+    <p>
+      <strong>問題描述</strong>：本機環境為 Windows + WSL2，
+      <code>javac</code> 安裝在 Windows 端，WSL bash 的 PATH 找不到。
+      AI 試圖在 WSL 直接執行 <code>javac</code> 失敗。
+    </p>
+    <p>
+      <strong>解決方式</strong>：改透過 <code>/mnt/c/Windows/System32/cmd.exe /c "cd /d D:\OO\UML &amp;&amp; build.bat"</code>
+      呼叫 Windows 的 cmd.exe 執行 build.bat，成功取得編譯結果。
+    </p>
+  </div>
+
+  <div class="card">
+    <h3>挑戰 4：ShapeFactory 的 drawPreview OCP 問題</h3>
+    <p>
+      <strong>問題描述</strong>：<code>CreateObjectMode.draw()</code> 需要在拖曳時預覽形狀。
+      AI 的初稿使用了 <code>if (factory instanceof RectShapeFactory)</code>，
+      這違反 OCP——若未來新增 TriangleShapeFactory，需要修改 CreateObjectMode 的程式碼。
+    </p>
+    <p>
+      <strong>解決方式</strong>：AI 自我發現了這個問題（「instanceof 是 OCP 違規」），
+      主動在 <code>ShapeFactory</code> 介面新增 <code>drawPreview()</code>，
+      由各具體工廠實作對應的預覽繪製邏輯，Mode 只呼叫 <code>factory.drawPreview(g, x, y, w, h)</code>。
+    </p>
+  </div>
+</section>
+
+<!-- ─────────────────────────────────────────────
+     §9 成果驗收
+───────────────────────────────────────────── -->
+<section id="result">
+  <h2><span class="num">9</span>成果驗收</h2>
+
+  <h3>編譯驗證</h3>
+  <div class="prompt-block cmd">
+    <div class="label">🖥️ 終端機輸出</div>
+    <pre style="background:transparent; padding:0; color: #1e293b; font-size:14px">$ /mnt/c/Windows/System32/cmd.exe /c "cd /d D:\OO\UML &amp;&amp; build.bat"
+Compiling Oops UML Editor...
+Build successful!</pre>
+  </div>
+
+  <h3>User Story 驗收結果</h3>
+  <table>
+    <tr>
+      <th>User Story</th>
+      <th>驗收標準</th>
+      <th>結果</th>
+    </tr>
+    <tr>
+      <td>US1 功能完整</td>
+      <td>所有原有操作均正常</td>
+      <td>✅ 通過（build.bat 零錯誤）</td>
+    </tr>
+    <tr>
+      <td>US2 MVC 分層</td>
+      <td>Canvas 無業務方法；UMLModel 無 javax.swing</td>
+      <td>✅ 通過（grep 零命中）</td>
+    </tr>
+    <tr>
+      <td>US3 Factory Pattern</td>
+      <td>CreateObjectMode 無 new RectObject/OvalObject；CreateLinkMode 無 switch</td>
+      <td>✅ 通過（grep 驗證）</td>
+    </tr>
+    <tr>
+      <td>US4 Observer Pattern</td>
+      <td>UMLModel 無 repaint()；每個 mutating 方法呼叫 notifyObservers()</td>
+      <td>✅ 通過（程式碼審查）</td>
+    </tr>
+    <tr>
+      <td>US5 模式標示</td>
+      <td>六種模式均有 // Pattern Name 標示；Class Diagram 完整對應</td>
+      <td>✅ 通過（全部類別已標示）</td>
+    </tr>
+  </table>
+
+  <h3>程式碼壞味道消除驗證</h3>
+  <div class="prompt-block cmd">
+    <div class="label">🔍 grep 驗證（零命中表示壞味道已消除）</div>
+    <pre style="background:transparent; padding:0; color: #1e293b; font-size:14px">$ grep -rn "canvas\.addObject\|canvas\.getSelectedObjects\|LinkType\|isRect\b\|switch.*linkType" src/
+（無輸出）← ✅ 所有壞味道均已消除</pre>
+  </div>
+
+  <h3>最終專案結構</h3>
+  <div class="card-grid">
+    <div class="card-sm">
+      <div class="icon">📁</div>
+      <strong>25 個 Java 原始碼檔案</strong>
+      <p>重構前 18 個 → 重構後 25 個（新增 7 個：1 Model + 1 Observer + 5 Factory）</p>
+    </div>
+    <div class="card-sm">
+      <div class="icon">🧩</div>
+      <strong>6 種設計模式</strong>
+      <p>Strategy、Composite、Template Method、Factory Method、Observer、MVC 全部標示</p>
+    </div>
+    <div class="card-sm">
+      <div class="icon">✅</div>
+      <strong>18/18 任務完成</strong>
+      <p>tasks.md 中所有 T001–T018 均標示為 [X] 完成</p>
+    </div>
+    <div class="card-sm">
+      <div class="icon">📐</div>
+      <strong>Class Diagram 更新</strong>
+      <p>class_diagram.puml 完整反映重構後架構，所有新增類別與關係均已涵蓋</p>
+    </div>
+  </div>
+</section>
+
+<!-- ─────────────────────────────────────────────
+     §10 心得反思
+───────────────────────────────────────────── -->
+<section id="reflection">
+  <h2><span class="num">10</span>心得反思：與 AI 協作的觀察</h2>
+
+  <div class="card">
+    <h3>AI 協作效益最大化的三個關鍵</h3>
+    <div class="steps">
+      <div class="step">
+        <div class="step-body">
+          <strong>「先說清楚要什麼」比「直接問怎麼做」更有效</strong>
+          <p>
+            直接問 AI「幫我實作 Factory Pattern」容易得到不符合實際需求的答案。
+            透過 <code>/speckit.specify</code> 先把問題轉化為結構化的 User Story 與驗收條件，
+            AI 在後續實作時才能做出符合需求的設計決策（例如 ShapeFactory 要包含 drawPreview，
+            因為「需求」中明確要求不能有 instanceof 判斷）。
+          </p>
+        </div>
+      </div>
+      <div class="step">
+        <div class="step-body">
+          <strong>「讓 AI 先提設計，人來審查」優於「讓 AI 直接寫程式碼」</strong>
+          <p>
+            在 <code>/speckit.plan</code> 階段，AI 提出了 <code>refresh()</code> 方法的設計方案，
+            解釋了為什麼拖曳操作需要它、以及為什麼不能直接呼叫 <code>canvas.repaint()</code>。
+            這個設計決策通過人工確認後才進入實作，比「讓 AI 直接寫然後才發現架構問題」
+            省下了大量的除錯時間。
+          </p>
+        </div>
+      </div>
+      <div class="step">
+        <div class="step-body">
+          <strong>「編譯驗證」是最可靠的 AI 輸出品質保證</strong>
+          <p>
+            AI 產生的程式碼在邏輯層面通常是正確的，但在細節層面（如 import、方法名稱拼寫）
+            可能有小疏漏。透過立即執行 <code>build.bat</code> 取得編譯器回饋，
+            遠比閱讀程式碼審查更快、更可靠。
+            這個流程也可以早期發現架構問題（如初稿呼叫不存在的 <code>notifyObserversDirectly()</code>），
+            在問題擴散之前修正。
+          </p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <h3>AI 目前的局限性</h3>
+    <table>
+      <tr>
+        <th>局限性</th>
+        <th>本次遇到的具體例子</th>
+        <th>因應方式</th>
+      </tr>
+      <tr>
+        <td>細節疏漏</td>
+        <td>Canvas 遺漏 <code>import oops.mode.Mode;</code></td>
+        <td>每次修改後立即執行編譯驗證</td>
+      </tr>
+      <tr>
+        <td>第一稿可能有 Bug</td>
+        <td>呼叫不存在的 <code>model.notifyObserversDirectly()</code></td>
+        <td>將設計討論放在實作之前（plan 先於 implement）</td>
+      </tr>
+      <tr>
+        <td>環境感知有限</td>
+        <td>不知道 WSL 找不到 javac</td>
+        <td>明確告知環境限制（WSL2 + Windows javac）</td>
+      </tr>
+      <tr>
+        <td>初稿設計不夠 OCP</td>
+        <td><code>instanceof</code> 判斷替代多型</td>
+        <td>提醒 AI OCP 原則，AI 可以自行修正</td>
+      </tr>
+    </table>
+  </div>
+
+  <div class="card">
+    <h3>這個流程的可遷移性</h3>
+    <p>
+      Speckit 的 <strong>specify → plan → tasks → implement</strong> 四階段流程
+      並不局限於本次作業。這套流程本質上是「需求工程（Requirements Engineering）→
+      系統設計（Architecture Design）→ 任務分解（Work Breakdown）→
+      實作（Implementation）」的 AI 輔助版本，
+      對任何規模的軟體開發都適用。
+    </p>
+    <p>
+      核心觀念是：<strong>AI 是加速器，不是替代品</strong>。
+      AI 加速了文件撰寫、樣板程式碼生成、重複性修改，
+      但架構決策的理解、設計方案的審查、最終程式碼的掌握，
+      仍然需要開發者自身的判斷。
+    </p>
+  </div>
+
+  <div class="callout success">
+    <span class="icon">🎯</span>
+    <div class="body">
+      <strong>最重要的收穫</strong>
+      透過 AI 協作完成這次重構，最大的收穫不是節省了時間，
+      而是 AI 在每個設計決策時都能清楚說明「為什麼這樣設計」
+      （例如：為什麼 refresh() 要是 public 而不是讓 Mode 直接呼叫 repaint()？
+      為什麼 ShapeFactory 要有 drawPreview() 而不是用 instanceof？），
+      幫助建立起對設計模式的深層理解，而不只是「照範本套用」。
+    </div>
+  </div>
+</section>
+
+</main>
+
+<!-- ══════════════════════════════════════════════
+     FOOTER
+══════════════════════════════════════════════ -->
+<footer>
+  <p>OopsUMLEditor 物件導向重構 — AI 協作設計報告</p>
+  <p style="margin-top:6px; opacity:0.6">
+    學生：林紘裔（112504009）｜使用工具：Claude Code (Anthropic claude-sonnet-4-6)｜日期：2026-06-10
+  </p>
+</footer>
+
+</body>
+</html>
